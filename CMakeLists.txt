@@ -214,6 +214,7 @@ if(PACKAGE)
     set(CPACK_NSIS_CONTACT "scram-users@googlegroups.com")
     set(CPACK_PACKAGE_EXECUTABLES "scram-gui" "SCRAM")
     set(CPACK_CREATE_DESKTOP_LINKS "scram-gui")
+    set(CMAKE_OBJDUMP "objdump")
     set(CPACK_COMPONENT_GUI_REQUIRED ON)
     # The following configuration assumes MinGW64 is setup specifically for this project.
     get_filename_component(MINGW_DLL_DIR "${CMAKE_CXX_COMPILER}" PATH)
