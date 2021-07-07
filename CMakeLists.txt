@@ -15,10 +15,10 @@ option(WITH_JEMALLOC "Use JEMalloc if available (#2 preference)" ON)
 option(WITH_COVERAGE "Instrument for coverage analysis" OFF)
 option(WITH_PROFILE "Instrument for performance profiling" OFF)
 
-option(BUILD_GUI "Build the GUI front-end" ON)
+option(BUILD_GUI "Build the GUI front-end" OFF)
 option(BUILD_TESTING "Build the tests" OFF)  # Influences CTest.
 
-option(PACKAGE "Package for distribution" OFF)
+option(PACKAGE "Package for distribution" ON)
 
 ####################### End Options ##################### }}}
 
