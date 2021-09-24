@@ -9,8 +9,8 @@ project(SCRAM VERSION 0.17.0 LANGUAGES CXX)
 
 ####################### Begin Options ################### {{{
 
-option(WITH_TCMALLOC "Use TCMalloc if available (#1 preference)" ON)
-option(WITH_JEMALLOC "Use JEMalloc if available (#2 preference)" ON)
+option(WITH_TCMALLOC "Use TCMalloc if available (#1 preference)" OFF)
+option(WITH_JEMALLOC "Use JEMalloc if available (#2 preference)" OFF)
 
 option(WITH_COVERAGE "Instrument for coverage analysis" OFF)
 option(WITH_PROFILE "Instrument for performance profiling" OFF)
