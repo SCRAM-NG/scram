@@ -399,7 +399,7 @@ Conventions in Documentation "Source Text"
 General
 -------
 
-- Prefer the :ref:`Aralia_format` for the Boolean formula documentation.
+- Prefer the `Aralia format <input_file.rst#aralia-input-format>`__ for the Boolean formula documentation.
   This format uses the C-style bit-wise logical operators for formulas.
 
 
