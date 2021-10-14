@@ -17,7 +17,7 @@ and current implementation with differences.
 
 In addition to the XML format,
 the :ref:`Aralia_format` is supported indirectly.
-`Aralia format <input_files.rst#Aralia-Input-Format>`__
+`Aralia format <input_file.rst#aralia-input-format>`__
 
 Encodings
 =========
