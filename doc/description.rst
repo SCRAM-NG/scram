@@ -42,8 +42,8 @@ there is no fine-grained analysis configuration per target.
 Analysis
 ========
 
-- :ref:`fault_tree_analysis`
-- :ref:`common_cause_failure`
-- :ref:`probability_analysis`
-- :ref:`uncertainty_analysis`
-- :ref:`event_tree_analysis`
+- `Fault Tree Analysis <fault_tree_analysis.rst>`__
+- `Common Cause Failure <common_cause_failure.rst>`__
+- `Probability Analysis <probability_analysis.rst>`__
+- `Uncertainty Analysis <uncertainty_analysis.rst>`__
+- `Event Tree Analysis <event_tree_analysis.rst>`__
