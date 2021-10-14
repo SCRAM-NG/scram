@@ -7,7 +7,7 @@ One model per run is assumed.
 See :ref:`xml_tools` for more convenient writing and reading of XML input files.
 
 The input file format follows
-the Open-PSA Model Exchange Format ([MEF]_) version 2.0d or later.
+the Open-PSA Model Exchange Format (`[MEF] <references.rst#standards-guides-manuals-handbooks>`__) version 2.0d or later.
 An extensive description is given in the above format documentation by Open-PSA,
 and input files should be straightforward to create and understand.
 However, not all Open-PSA formatting is supported,

@@ -10,8 +10,8 @@ Overview
 
 There are many algorithms developed for fault tree analysis since the 1960s,
 but MOCUS-based and BDD-based algorithms are most used in current PRA software
-[Rau93]_ [Rau03]_.
-More information can be found in :ref:`references`.
+`[Rau93] <references.rst#papers>`__ `[Rau03] <references.rst#papers>`__.
+More information can be found in `References <references.rst>`__.
 
 
 MOCUS
@@ -19,7 +19,7 @@ MOCUS
 
 MOCUS is a top-down algorithm first proposed by J.Fussel and W.Vesely in 1972.
 There are many suggested improvement techniques for this algorithm,
-but the basics are simpler than for other FTA algorithms [Rau03]_.
+but the basics are simpler than for other FTA algorithms `[Rau03] <references.rst#papers>`__.
 In addition, MOCUS-like algorithms may incorporate approximations
 to speed up their calculations;
 however, this may lead to inaccuracies in overall analysis.
@@ -32,18 +32,18 @@ Binary Decision Diagram
 =======================
 
 The BDD-based algorithm can use
-various types of the Binary Decision Diagram ([BDD]_, [ZBDD]_)
-for Boolean operations [Bry86]_ [Min93]_ [Rau93]_.
+various types of the Binary Decision Diagram (`[BDD] <references.rst#papers>`__, `[ZBDD] <references.rst#papers>`__)
+for Boolean operations `[Bry86] <references.rst#papers>`__ `[Min93] <references.rst#papers>`__ `[Rau93] <references.rst#papers>`__.
 This is a bottom-up approach that is mature and well tuned for PRA
 and other logic applications.
-This method consists of many complex algorithms of the BDD to find MCS [Rau01]_.
+This method consists of many complex algorithms of the BDD to find MCS `[Rau01] <references.rst#papers>`__.
 The BDD algorithms tend to be faster than MOCUS and other algorithms;
 however, this algorithm is subject to combinatorial explosion
 for very large models with thousands of basic events and gates
 with many replicated events.
 One more important advantage of the BDD-based analysis is
 that the BDD allows fast and exact calculation of probabilities,
-which makes Probability, Importance, Uncertainty analyses fast as well [DR01]_.
+which makes Probability, Importance, Uncertainty analyses fast as well `[DR01] <references.rst#papers>`__.
 This algorithm is used in CAFTA, RiskA, and RiskMan.
 
 
@@ -52,7 +52,7 @@ Prime Implicants vs. Minimal Cut Sets
 *************************************
 
 Minimal cut sets are necessary and sufficient sets of basic events (variables)
-that induce the failure of the top event [Rau01]_.
+that induce the failure of the top event `[Rau01] <references.rst#papers>`__.
 The set represents a conjunction of Boolean variables (product).
 Another way to represent the minimal sets of basic events
 is to consider the shortest paths for top event failure.
@@ -90,7 +90,7 @@ Moreover, the computation of minimal cut sets
 is simpler than the computation of prime implicants.
 Calculation of prime implicants involves
 extra computations in accordance to the Consensus theorem
-and generates a lot more products than calculation of minimal cut sets [PA09]_.
+and generates a lot more products than calculation of minimal cut sets `[PA09] <references.rst#papers>`__.
 
 The benefit of calculation of prime implicants is
 that it is the exact representation of the system without approximations.
@@ -135,7 +135,7 @@ SCRAM FTA Algorithms
 MOCUS
 =====
 
-This algorithm is similar to the MOCUS algorithm as described in [Rau03]_.
+This algorithm is similar to the MOCUS algorithm as described in `[Rau03] <references.rst#papers>`__.
 Steps in the algorithm for minimal cut set generation from a fault tree.
 
 **Rule 1.** Each OR gate generates new rows (sets) in the table (set) of cut sets
@@ -179,8 +179,8 @@ Binary Decision Diagram
 Binary decision diagrams are constructed from PDAGs for analysis.
 In order to calculate minimal cut sets or prime implicants,
 BDD is converted into Zero-suppressed binary decision diagrams (ZBDD).
-ZBDD is a data structure that encodes sets in a compact way [Min93]_.
-Minimization of sets is performed with subsume operations described in [Rau93]_.
+ZBDD is a data structure that encodes sets in a compact way `[Min93] <references.rst#papers>`__.
+Minimization of sets is performed with subsume operations described in `[Rau93] <references.rst#papers>`__.
 After these operations,
 any path leading to 1 (True) terminal
 is extracted as a product.
@@ -190,7 +190,7 @@ Zero-Suppressed Binary Decision Diagram
 =======================================
 
 In addition to being a helpful facility for set minimization,
-ZBDDs can work directly with PDAGs [Jun09]_.
+ZBDDs can work directly with PDAGs `[Jun09] <references.rst#papers>`__.
 The major benefit of this approach
 is that products can be kept minimal and truncated upon generation.
 However, the application of Boolean operators on the ZBDD decomposition

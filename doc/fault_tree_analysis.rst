@@ -4,7 +4,7 @@
 Fault Tree Analysis
 ###################
 
-Fault tree analysis [FTA]_ is one of the core analyses.
+Fault tree analysis `[FTA] <references.rst#web-resources>`__ is one of the core analyses.
 Other analyses may require or depend on the fault-tree analysis results or constructs.
 Fault trees employ various types of gates (Boolean connectives) and events
 to represent Boolean formulas and to model systems for analysis.
@@ -30,14 +30,14 @@ Analysis Algorithms
 ===================
 
 - :ref:`preprocessing`
-- :ref:`fta_algorithms`
-- :ref:`probability_analysis`
+- `FTA Algorithms <fta_algorithms.rst>`__
+- `Probability Analysis <probability_analysis.rst>`__
 
 
 Supported Gate and Event Types
 ==============================
 
-All the event types and Boolean connectives described in the Open-PSA [MEF]_ are supported.
+All the event types and Boolean connectives described in the Open-PSA `[MEF] <references.rst#standards-guides-manuals-handbooks>`__ are supported.
 In addition,
 SCRAM currently "abuses" the Open-PSA [MEF]_ attributes mechanism
 to add inessential (for analysis) information or flavors to events.
