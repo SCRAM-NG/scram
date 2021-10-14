@@ -29,7 +29,7 @@ and their respective control parameters (knobs).
 Analysis Algorithms
 ===================
 
-- :ref:`preprocessing`
+- `FTA preprocessing <fta_preprocessing.rst>`__
 - `FTA Algorithms <fta_algorithms.rst>`__
 - `Probability Analysis <probability_analysis.rst>`__
 
