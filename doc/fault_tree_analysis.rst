@@ -39,7 +39,7 @@ Supported Gate and Event Types
 
 All the event types and Boolean connectives described in the Open-PSA `[MEF] <references.rst#standards-guides-manuals-handbooks>`__ are supported.
 In addition,
-SCRAM currently "abuses" the Open-PSA [MEF]_ attributes mechanism
+SCRAM currently "abuses" the Open-PSA `[MEF] <references.rst#standards-guides-manuals-handbooks>`__ attributes mechanism
 to add inessential (for analysis) information or flavors to events.
 This approach still ensures that the input file is portable across tools.
 

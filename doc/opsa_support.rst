@@ -47,7 +47,7 @@ Supported Open-PSA MEF Features
 ===============================
 
 The difference between `the Open-PSA MEF schema <https://github.com/open-psa/schemas/>`_
-and SCRAM's :ref:`schema` can be used
+and SCRAM's `schema <opsa_support.rst>`__ can be used
 to identify the supported and unsupported features.
 
 - Label

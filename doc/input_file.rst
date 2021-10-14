@@ -12,7 +12,7 @@ An extensive description is given in the above format documentation by Open-PSA,
 and input files should be straightforward to create and understand.
 However, not all Open-PSA formatting is supported,
 and some additional assumptions/restrictions are made by SCRAM.
-See :ref:`opsa_support` for the format description
+See `opsa_support <opsa_support.rst>`__ for the format description
 and current implementation with differences.
 
 In addition to the XML format,
@@ -38,7 +38,7 @@ Steps in XML Input Validation
       This information about models in the other input files is ignored without a warning,
       which allows reuse of files with analysis constructs from other models.
 
-#. XML input file validation against the `RELAX NG`_ :ref:`schema`.
+#. XML input file validation against the `RELAX NG Schema <https://github.com/rakhimov/scram/blob/master/share/input.rng>`_.
 #. The validation assumptions/requirements:
 
     - Construct names and references are case-sensitive.
