@@ -2,19 +2,6 @@
 SCRAM
 #####
 
-.. image:: https://travis-ci.org/rakhimov/scram.svg?branch=develop
-    :target: https://travis-ci.org/rakhimov/scram
-.. image:: https://ci.appveyor.com/api/projects/status/d36yu2w3t8hy4ito/branch/develop?svg=true
-    :target: https://ci.appveyor.com/project/rakhimov/scram/branch/develop
-    :alt: 'Build status'
-.. image:: https://codecov.io/github/rakhimov/scram/coverage.svg?branch=develop
-    :target: https://codecov.io/github/rakhimov/scram?branch=develop
-.. image:: https://scan.coverity.com/projects/2555/badge.svg
-    :target: https://scan.coverity.com/projects/2555
-.. image:: https://api.codacy.com/project/badge/Grade/7067af3e78774325bb33894deac23b9c
-    :target: https://www.codacy.com/app/rakhimov/scram?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=rakhimov/scram&amp;utm_campaign=Badge_Grade
-
-|
 
 **SCRAM** is a **C**\ommand-line **R**\isk **A**\nalysis **M**\ulti-tool.
 
