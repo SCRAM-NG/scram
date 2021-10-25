@@ -25,12 +25,20 @@ probability calculations with importance analysis,
 and uncertainty analysis with Monte Carlo simulations.
 This tool can handle non-coherent fault trees, containing NOT logic.
 
+This repository (SCRAM-NG/scram) was originally created in october 2021 by cloning the repository rakhimov/scram for the 
+needs of the METIS European project (https://metis-h2020.eu/). The partners of this project wanted to have full control
+on the source code of SCRAM, in order to be able to tailor it to the needs of Probabilistic Safety Assessment of nuclear power plants, 
+including specific features for dealing with seism.
+
 SCRAM input and report files are based on the Open-PSA_ `Model Exchange Format`_.
 For the current status of the Open-PSA MEF features in SCRAM,
 please see the `MEF Support`_ documentation.
 
-A complementary GUI front-end is under development
-for visualization and manipulation of risk analysis models and reports.
+The orginal repository rakhimov/scram included a simple GUI for visualization and manipulation of risk analysis models and reports.
+This GUI has been removed from SCRAM-NG/scram because the partners of the METIS project will use the Andromeda GUI. Andromeda (https://www.edgemind.net/andromeda/)
+offers a variety of functions for manipulating large PSA models: edition, comparison of two models, conversion between Model Exchange Format 
+and other formats, visualization of models structures by means of graphs... It is now able to launch SCRAM to process a model, and to display
+in a user-friendly way the calculation results: minimal cut sets, importance factors and top event probability.
 
 To explore the performance of SCRAM or research fault trees,
 a fault tree generator script is provided,
