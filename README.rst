@@ -396,7 +396,7 @@ How to Contribute
 Please follow the instructions in `CONTRIBUTING.md`_.
 
 .. _CONTRIBUTING.md:
-    https://github.com/rakhimov/scram/blob/develop/CONTRIBUTING.md
+    https://github.com/SCRAM-NG/scram/blob/develop/CONTRIBUTING.md
 
 
 .. image:: https://bestpractices.coreinfrastructure.org/projects/356/badge
