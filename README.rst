@@ -34,11 +34,15 @@ SCRAM input and report files are based on the Open-PSA_ `Model Exchange Format`_
 For the current status of the Open-PSA MEF features in SCRAM,
 please see the `MEF Support`_ documentation.
 
-The orginal repository rakhimov/scram included a simple GUI for visualization and manipulation of risk analysis models and reports.
+The original repository rakhimov/scram included a simple GUI for visualization and manipulation of risk analysis models and reports.
 This GUI has been removed from SCRAM-NG/scram because the partners of the METIS project will use the Andromeda GUI. Andromeda (https://www.edgemind.net/andromeda/)
 offers a variety of functions for manipulating large PSA models: edition, comparison of two models, conversion between Model Exchange Format 
 and other formats, visualization of models structures by means of graphs... It is now able to launch SCRAM to process a model, and to display
 in a user-friendly way the calculation results: minimal cut sets, importance factors and top event probability.
+
+For newcomers in a Windows environment, the easiest way to discover SCRAM is to download a realease here: https://github.com/SCRAM-NG/scram/releases.
+The release contains the executable code and the documentation, compiled in HTML. The documentation source can be browsed directly on github, as this site 
+compiles some (but not all) features of .rst files on-the-fly. This is why for example mathematical expressions will display poorly.
 
 To explore the performance of SCRAM or research fault trees,
 a fault tree generator script is provided,
