@@ -385,16 +385,3 @@ Please follow the instructions in `CONTRIBUTING.md`_.
 .. _CONTRIBUTING.md:
     https://github.com/SCRAM-NG/scram/blob/develop/CONTRIBUTING.md
 
-
-.. image:: https://bestpractices.coreinfrastructure.org/projects/356/badge
-    :target: https://bestpractices.coreinfrastructure.org/projects/356
-    :alt: CII Best Practices
-.. image:: https://www.openhub.net/p/scram/widgets/project_thin_badge.gif
-    :target: https://www.openhub.net/p/scram
-    :alt: Open HUB Metrics
-.. image:: https://d322cqt584bo4o.cloudfront.net/scram/localized.svg
-    :target: https://crowdin.com/project/scram
-    :alt: Crowdin
-.. image:: https://zenodo.org/badge/17964226.svg
-    :target: https://zenodo.org/badge/latestdoi/17964226
-    :alt: Zenodo DOI
