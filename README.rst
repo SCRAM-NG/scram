@@ -368,7 +368,7 @@ Documentation Building
 Documentation is generated with the configurations on the gh-source_ branch.
 The raw documentation files are in the ``doc`` directory.
 
-.. _gh-source: https://github.com/rakhimov/scram/tree/gh-source
+.. _gh-source: https://github.com/SCRAM-NG/scram/tree/gh-source
 
 
 **************
