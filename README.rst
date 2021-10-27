@@ -2,19 +2,6 @@
 SCRAM
 #####
 
-.. image:: https://travis-ci.org/rakhimov/scram.svg?branch=develop
-    :target: https://travis-ci.org/rakhimov/scram
-.. image:: https://ci.appveyor.com/api/projects/status/d36yu2w3t8hy4ito/branch/develop?svg=true
-    :target: https://ci.appveyor.com/project/rakhimov/scram/branch/develop
-    :alt: 'Build status'
-.. image:: https://codecov.io/github/rakhimov/scram/coverage.svg?branch=develop
-    :target: https://codecov.io/github/rakhimov/scram?branch=develop
-.. image:: https://scan.coverity.com/projects/2555/badge.svg
-    :target: https://scan.coverity.com/projects/2555
-.. image:: https://api.codacy.com/project/badge/Grade/7067af3e78774325bb33894deac23b9c
-    :target: https://www.codacy.com/app/rakhimov/scram?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=rakhimov/scram&amp;utm_campaign=Badge_Grade
-
-|
 
 **SCRAM** is a **C**\ommand-line **R**\isk **A**\nalysis **M**\ulti-tool.
 
@@ -25,12 +12,24 @@ probability calculations with importance analysis,
 and uncertainty analysis with Monte Carlo simulations.
 This tool can handle non-coherent fault trees, containing NOT logic.
 
+This repository (SCRAM-NG/scram) was originally created in october 2021 by cloning the repository rakhimov/scram for the 
+needs of the METIS European project (https://metis-h2020.eu/). The partners of this project wanted to have full control
+on the source code of SCRAM, in order to be able to tailor it to the needs of Probabilistic Safety Assessment of nuclear power plants, 
+including specific features for dealing with seism.
+
 SCRAM input and report files are based on the Open-PSA_ `Model Exchange Format`_.
 For the current status of the Open-PSA MEF features in SCRAM,
 please see the `MEF Support`_ documentation.
 
-A complementary GUI front-end is under development
-for visualization and manipulation of risk analysis models and reports.
+The original repository rakhimov/scram included a simple GUI for visualization and manipulation of risk analysis models and reports.
+This GUI has been removed from SCRAM-NG/scram because the partners of the METIS project will use the Andromeda GUI. Andromeda (https://www.edgemind.net/andromeda/)
+offers a variety of functions for manipulating large PSA models: edition, comparison of two models, conversion between Model Exchange Format 
+and other formats, visualization of models structures by means of graphs... It is now able to launch SCRAM to process a model, and to display
+in a user-friendly way the calculation results: minimal cut sets, importance factors and top event probability.
+
+For newcomers in a Windows environment, the easiest way to discover SCRAM is to download a realease here: https://github.com/SCRAM-NG/scram/releases.
+The release contains the executable code and the documentation, compiled in HTML. The documentation source can be browsed directly on github, as this site 
+compiles some (but not all) features of .rst files on-the-fly. This is why for example mathematical expressions will display poorly.
 
 To explore the performance of SCRAM or research fault trees,
 a fault tree generator script is provided,
@@ -356,7 +355,7 @@ Documentation Building
 Documentation is generated with the configurations on the gh-source_ branch.
 The raw documentation files are in the ``doc`` directory.
 
-.. _gh-source: https://github.com/rakhimov/scram/tree/gh-source
+.. _gh-source: https://github.com/SCRAM-NG/scram/tree/gh-source
 
 
 **************
@@ -384,18 +383,5 @@ How to Contribute
 Please follow the instructions in `CONTRIBUTING.md`_.
 
 .. _CONTRIBUTING.md:
-    https://github.com/rakhimov/scram/blob/develop/CONTRIBUTING.md
+    https://github.com/SCRAM-NG/scram/blob/develop/CONTRIBUTING.md
 
-
-.. image:: https://bestpractices.coreinfrastructure.org/projects/356/badge
-    :target: https://bestpractices.coreinfrastructure.org/projects/356
-    :alt: CII Best Practices
-.. image:: https://www.openhub.net/p/scram/widgets/project_thin_badge.gif
-    :target: https://www.openhub.net/p/scram
-    :alt: Open HUB Metrics
-.. image:: https://d322cqt584bo4o.cloudfront.net/scram/localized.svg
-    :target: https://crowdin.com/project/scram
-    :alt: Crowdin
-.. image:: https://zenodo.org/badge/17964226.svg
-    :target: https://zenodo.org/badge/latestdoi/17964226
-    :alt: Zenodo DOI
