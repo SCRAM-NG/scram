@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (C) 2015-2017 Olzhas Rakhimov
+# Copyright (C) 2015-2018 Olzhas Rakhimov
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,13 +42,13 @@ import argparse as ap
 import fault_tree_generator as ft_gen
 
 
-class Config(object):
+class Config:
     """Storage for configurations.
 
     Empty strings mean the default options of SCRAM.
 
     Attributes:
-        switch: SCRAM flags that take true or false values.
+        switch: SCRAM Boolean flags.
         approximation: SCRAM quantitative analysis approximations.
         analysis: Qualitative analysis algorithms.
         max_limit: The largest size limit on the cut sets.
@@ -112,8 +112,10 @@ def generate_input(normal, coherent, output_dir=None):
     Returns:
         The path to the input file.
     """
-    input_file = NamedTemporaryFile(
-        dir=output_dir, prefix="fault_tree_", suffix=".xml", delete=False)
+    input_file = NamedTemporaryFile(dir=output_dir,
+                                    prefix="fault_tree_",
+                                    suffix=".xml",
+                                    delete=False)
     cmd = [
         "--num-basic", "100", "--common-b", "0.4", "--parents-b", "5",
         "--common-g", "0.2", "--parents-g", "3", "--num-args", "2.5", "--seed",
@@ -162,7 +164,7 @@ def generate_analysis_call(input_file):
     """
     cmd = ["scram", input_file, "--limit-order", str(get_limit_order())]
     if Config.switch:
-        cmd += [random.choice(Config.switch), random.choice(["true", "false"])]
+        cmd += [random.choice(Config.switch)]
     approx = random.choice(Config.approximation)
     if approx:
         cmd.append(approx)
@@ -260,49 +262,45 @@ def main():
     """
     # #lizard forgives the function length
     parser = ap.ArgumentParser(description="SCRAM Fuzz Tester")
-    parser.add_argument(
-        "-n",
-        "--num-runs",
-        type=int,
-        help="# of SCRAM runs",
-        default=10,
-        metavar="int")
-    parser.add_argument(
-        "--preprocessor", action="store_true", help="focus on Preprocessor")
+    parser.add_argument("-n",
+                        "--num-runs",
+                        type=int,
+                        help="# of SCRAM runs",
+                        default=10,
+                        metavar="int")
+    parser.add_argument("--preprocessor",
+                        action="store_true",
+                        help="focus on Preprocessor")
     parser.add_argument("--mocus", action="store_true", help="focus on MOCUS")
     parser.add_argument("--bdd", action="store_true", help="focus on BDD")
     parser.add_argument("--zbdd", action="store_true", help="focus on ZBDD")
-    parser.add_argument(
-        "--cross-validate",
-        action="store_true",
-        help="compare results of BDD, ZBDD, and MOCUS")
-    parser.add_argument(
-        "--coherent", action="store_true", help="focus on coherent models")
-    parser.add_argument(
-        "--normal",
-        action="store_true",
-        help="focus on models with AND/OR gates only")
-    parser.add_argument(
-        "--prime-implicants",
-        action="store_true",
-        help="focus on Prime Implicants")
-    parser.add_argument(
-        "--time-limit",
-        type=int,
-        metavar="seconds",
-        help="CPU time limit for each run")
-    parser.add_argument(
-        "-j",
-        "--jobs",
-        type=int,
-        metavar="N",
-        help="allow N runs (jobs) at once")
-    parser.add_argument(
-        "-o",
-        "--output-dir",
-        type=str,
-        metavar="path",
-        help="directory to put results")
+    parser.add_argument("--cross-validate",
+                        action="store_true",
+                        help="compare results of BDD, ZBDD, and MOCUS")
+    parser.add_argument("--coherent",
+                        action="store_true",
+                        help="focus on coherent models")
+    parser.add_argument("--normal",
+                        action="store_true",
+                        help="focus on models with AND/OR gates only")
+    parser.add_argument("--prime-implicants",
+                        action="store_true",
+                        help="focus on Prime Implicants")
+    parser.add_argument("--time-limit",
+                        type=int,
+                        metavar="seconds",
+                        help="CPU time limit for each run")
+    parser.add_argument("-j",
+                        "--jobs",
+                        type=int,
+                        default=1,
+                        metavar="N",
+                        help="allow N runs (jobs) at once")
+    parser.add_argument("-o",
+                        "--output-dir",
+                        type=str,
+                        metavar="path",
+                        help="directory to put results")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
@@ -329,7 +327,7 @@ def get_map(working_threads):
     return multiprocessing.Pool(processes=working_threads).imap_unordered
 
 
-class Fuzzer(object):  # pylint: disable=too-few-public-methods
+class Fuzzer:  # pylint: disable=too-few-public-methods
     """Runs fuzz testing."""
 
     def __init__(self, args):

@@ -126,15 +126,6 @@ public:
                               QGraphicsItem *parent = nullptr);
 };
 
-/// The event used in Inhibit gates.
-class ConditionalEvent : public Event
-{
-public:
-    /// @copydoc Event::Event
-    explicit ConditionalEvent(model::BasicEvent *event,
-                              QGraphicsItem *parent = nullptr);
-};
-
 /// An alias pointer to a gate.
 class TransferIn : public Event
 {
@@ -159,7 +150,7 @@ public:
          QGraphicsItem *parent = nullptr);
 
     /// Constructs graphics object representing the given gate type.
-    std::unique_ptr<QGraphicsItem> getGateGraphicsType(mef::Operator type);
+    std::unique_ptr<QGraphicsItem> getGateGraphicsType(mef::Connective type);
 
     double width() const override;
 

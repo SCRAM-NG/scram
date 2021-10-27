@@ -4,13 +4,13 @@
 Event Tree Analysis
 ###################
 
-Event tree analysis [ETA]_ is an analysis of end sequences
+Event tree analysis `[ETA] <references.rst#web-resources>`__ is an analysis of end sequences
 given an initiating event and progression of states over functional events.
-The analysis uses the gathered Boolean formula and expressions per sequence
+The analysis uses the gathered Boolean formulae and expressions per sequence
 to supply arguments for other analysis kinds,
 such as fault-tree, probability, and uncertainty analyses.
 
-The Model Exchange Format [MEF]_ provides very flexible and powerful mechanisms
+The Model Exchange Format `[MEF] <references.rst#standards-guides-manuals-handbooks>`__ provides very flexible and powerful mechanisms
 to express event trees.
 The programming nature of event trees is achieved with a set of Instructions and Expressions
 that control the interpretation of paths leading to sequences.
@@ -29,7 +29,7 @@ Validation
 
 - Functional event states in forks can be arbitrary but unique (per fork).
 
-- In expressions evaluating a functional event state,
+- In expressions evaluating a functional-event state,
   the state must be one of possible states declared in functional event forks.
   *This validation is not implemented.*
 

@@ -22,18 +22,34 @@
 
 #include <cmath>
 
+#include <utility>
+
+#include <boost/algorithm/string/join.hpp>
+#include <boost/range/adaptor/transformed.hpp>
+
 #include "error.h"
 #include "expression/constant.h"
 #include "expression/numerical.h"
 #include "ext/algorithm.h"
-#include "ext/combination_iterator.h"
+#include "ext/combination.h"
 #include "ext/float_compare.h"
 
 namespace scram::mef {
 
-CcfEvent::CcfEvent(std::string name, const CcfGroup* ccf_group)
-    : BasicEvent(std::move(name), ccf_group->base_path(), ccf_group->role()),
-      ccf_group_(*ccf_group) {}
+CcfEvent::CcfEvent(std::vector<Gate*> members, const CcfGroup* ccf_group)
+    : BasicEvent(MakeName(members), ccf_group->base_path(), ccf_group->role()),
+      ccf_group_(*ccf_group),
+      members_(std::move(members)) {}
+
+std::string CcfEvent::MakeName(const std::vector<Gate*>& members) {
+  return "[" +
+         boost::join(members | boost::adaptors::transformed(
+                                   [](const Gate* gate) -> decltype(auto) {
+                                     return gate->name();
+                                   }),
+                     " ") +
+         "]";
+}
 
 void CcfGroup::AddMember(BasicEvent* basic_event) {
   if (distribution_ || factors_.empty() == false) {
@@ -44,9 +60,8 @@ void CcfGroup::AddMember(BasicEvent* basic_event) {
   if (ext::any_of(members_, [&basic_event](BasicEvent* member) {
         return member->name() == basic_event->name();
       })) {
-    SCRAM_THROW(DuplicateArgumentError("Duplicate member " +
-                                       basic_event->name() + " in " +
-                                       Element::name() + " CCF group."));
+    SCRAM_THROW(DuplicateElementError())
+        << errinfo_element(basic_event->name(), "CCF group event");
   }
   members_.push_back(basic_event);
 }
@@ -55,8 +70,8 @@ void CcfGroup::AddDistribution(Expression* distr) {
   if (distribution_)
     SCRAM_THROW(LogicError("CCF distribution is already defined."));
   if (members_.size() < 2) {
-    SCRAM_THROW(ValidityError(Element::name() +
-                              " CCF group must have at least 2 members."));
+    SCRAM_THROW(ValidityError("CCF group must have at least 2 members."))
+        << errinfo_element(Element::name(), kTypeString);
   }
   distribution_ = distr;
   // Define probabilities of all basic events.
@@ -73,23 +88,24 @@ void CcfGroup::AddFactor(Expression* factor, std::optional<int> level) {
     SCRAM_THROW(LogicError("Invalid CCF group factor setup."));
 
   if (*level < min_level) {
-    SCRAM_THROW(ValidityError(
-        "The CCF factor level (" + std::to_string(*level) +
-        ") is less than the minimum level (" + std::to_string(min_level) +
-        ") required by " + Element::name() + " CCF group."));
+    SCRAM_THROW(ValidityError("The CCF factor level (" +
+                              std::to_string(*level) +
+                              ") is less than the minimum level (" +
+                              std::to_string(min_level) + ")."))
+        << errinfo_element(Element::name(), kTypeString);
   }
   if (members_.size() < *level) {
     SCRAM_THROW(ValidityError("The CCF factor level " + std::to_string(*level) +
                               " is more than the number of members (" +
-                              std::to_string(members_.size()) + ") in " +
-                              Element::name() + " CCF group."));
+                              std::to_string(members_.size()) + ")"))
+        << errinfo_element(Element::name(), kTypeString);
   }
 
   int index = *level - min_level;
   if (index < factors_.size() && factors_[index].second != nullptr) {
-    SCRAM_THROW(RedefinitionError("Redefinition of CCF factor for level " +
-                                  std::to_string(*level) + " in " +
-                                  Element::name() + " CCF group."));
+    SCRAM_THROW(ValidityError("Redefinition of CCF factor for level " +
+                              std::to_string(*level)))
+        << errinfo_element(Element::name(), kTypeString);
   }
   if (index >= factors_.size())
     factors_.resize(index + 1);
@@ -99,72 +115,69 @@ void CcfGroup::AddFactor(Expression* factor, std::optional<int> level) {
 }
 
 void CcfGroup::Validate() const {
-  if (!distribution_ || members_.empty() || factors_.empty())
-    SCRAM_THROW(
-        LogicError("CCF group " + Element::name() + " is not initialized."));
+  try {
+    if (!distribution_ || members_.empty() || factors_.empty())
+      SCRAM_THROW(LogicError("CCF group is not initialized."));
 
-  EnsureProbability(distribution_,
-                    Element::name() + " CCF group distribution.");
+    EnsureProbability(distribution_, "CCF group distribution");
 
-  for (const std::pair<int, Expression*>& f : factors_) {
-    if (!f.second) {
-      SCRAM_THROW(ValidityError("Missing some CCF factors for " +
-                                Element::name() + " CCF group."));
+    for (const std::pair<int, Expression*>& f : factors_) {
+      if (!f.second)
+        SCRAM_THROW(ValidityError("Missing some CCF factors"));
+
+      EnsureProbability(f.second, "CCF group factor");
     }
-    EnsureProbability(f.second, Element::name() + " CCF group factors.",
-                      "fraction");
+
+    this->DoValidate();
+
+  } catch (Error& err) {
+    err << errinfo_element(Element::name(), kTypeString);
+    throw;
   }
-  this->DoValidate();
 }
-
-namespace {
-
-/// Joins CCF combination proxy gate names
-/// to create a distinct name for a new CCF event.
-///
-/// @param[in] combination  The combination of events.
-///
-/// @returns A uniquely mangled string for the combination.
-std::string JoinNames(const std::vector<Gate*>& combination) {
-  std::string name = "[";
-  for (auto it = combination.begin(), it_end = std::prev(combination.end());
-       it != it_end; ++it) {
-    name += (*it)->name() + " ";
-  }
-  name += combination.back()->name() + "]";
-  return name;
-}
-
-}  // namespace
 
 void CcfGroup::ApplyModel() {
   // Construct replacement proxy gates for member basic events.
-  std::vector<Gate*> proxy_gates;
+  std::vector<std::pair<Gate*, Formula::ArgSet>> proxy_gates;
   for (BasicEvent* member : members_) {
     auto new_gate = std::make_unique<Gate>(member->name(), member->base_path(),
                                            member->role());
     assert(member->id() == new_gate->id());
-    new_gate->formula(std::make_unique<Formula>(kOr));
-
-    proxy_gates.push_back(new_gate.get());
+    proxy_gates.push_back({new_gate.get(), {}});
     member->ccf_gate(std::move(new_gate));
   }
 
   ExpressionMap probabilities = this->CalculateProbabilities();
   assert(probabilities.size() > 1);
 
-  for (auto& entry : probabilities) {
-    int level = entry.first;
-    Expression* prob = entry.second;
-    for (auto combination : ext::make_combination_generator(
-             level, proxy_gates.begin(), proxy_gates.end())) {
-      auto ccf_event = std::make_unique<CcfEvent>(JoinNames(combination), this);
+  // Generate CCF events.
+  for (auto& [level, prob] : probabilities) {
+    using Iterator = decltype(proxy_gates)::iterator;
+    auto combination_visitor = [this, prob](Iterator it_begin,
+                                            Iterator it_end) {
+      std::vector<Gate*> combination;
+      for (auto it = it_begin; it != it_end; ++it)
+        combination.push_back(it->first);
+
+      auto ccf_event = std::make_unique<CcfEvent>(std::move(combination), this);
+
+      for (auto it = it_begin; it != it_end; ++it)
+        it->second.Add(ccf_event.get());
+
       ccf_event->expression(prob);
-      for (Gate* gate : combination)
-        gate->formula().AddArgument(ccf_event.get());
-      ccf_event->members(std::move(combination));  // Move, at last.
       ccf_events_.emplace_back(std::move(ccf_event));
-    }
+
+      return false;
+    };
+    ext::for_each_combination(proxy_gates.begin(),
+                              std::next(proxy_gates.begin(), level),
+                              proxy_gates.end(), combination_visitor);
+  }
+
+  // Assign formulas to the proxy gates.
+  for (std::pair<Gate*, Formula::ArgSet>& gate : proxy_gates) {
+    assert(gate.second.size() >= 2);
+    gate.first->formula(std::make_unique<Formula>(kOr, std::move(gate.second)));
   }
 }
 
@@ -272,8 +285,7 @@ void PhiFactorModel::DoValidate() const {
   }
   if (!ext::is_close(1, sum, 1e-4) || !ext::is_close(1, sum_min, 1e-4) ||
       !ext::is_close(1, sum_max, 1e-4)) {
-    SCRAM_THROW(ValidityError("The factors for Phi model " + CcfGroup::name() +
-                              " CCF group must sum to 1."));
+    SCRAM_THROW(ValidityError("The factors for Phi model CCF must sum to 1."));
   }
 }
 

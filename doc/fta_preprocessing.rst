@@ -10,11 +10,11 @@ fault tree preprocessing (or transformation) is attempted
 before initiating other fault tree analysis algorithms.
 
 The preprocessing algorithms deal with
-transformations of propositional directed acyclic graphs ([PDAG]_)
-to reduce the complexity and divide-and-conquer the problem.
+transformations of propositional directed acyclic graphs (`[PDAG] <references.rst#web-resources>`__)
+to reduce the complexity and to divide-and-conquer the problem.
 There are many proposed algorithms,
 and successful application of preprocessing techniques helps reduce substantially
-the complexity of analysis of large graphs in some cases.
+the analysis complexity of large graphs in some cases.
 However, the ordering of preprocessing algorithms is not always clear
 due to their side-effects,
 and the performance gain is not guaranteed (may even be negative).
@@ -27,9 +27,9 @@ Constant Propagation
 
 House or external events are treated as Boolean constants
 and propagated according to the Boolean logic
-before other more complex and expensive preprocessing steps [NR99]_ [Rau03]_.
+before other more complex and expensive preprocessing steps `[NR99] <references.rst#papers>`__ `[Rau03] <references.rst#papers>`__.
 This procedure prunes the PDAG.
-Null and unity branches are removed from the PDAG
+Null and unity branches are removed from the PDAG,
 leaving only variables and gates.
 
 
@@ -37,8 +37,8 @@ Gate Normalization
 ==================
 
 The PDAG is simplified to contain only *AND* and *OR* gates
-by rewriting complex gates like *VOTE* and *XOR* with *AND* and *OR* gates
-[Nie94]_ [Rau03]_.
+by rewriting complex gates like *ATLEAST* and *XOR* with *AND* and *OR* gates
+`[Nie94] <references.rst#papers>`__ `[Rau03] <references.rst#papers>`__.
 After this operation,
 the graph is in normal form.
 
@@ -47,8 +47,8 @@ Complement Propagation
 ======================
 
 Complements or negations of gates are pushed down to leaves (variables)
-according to the De Morgan's law [Rau03]_.
-This procedure transforms the graph into negation normal form ([NNF]_)
+according to the De Morgan's law `[Rau03] <references.rst#papers>`__.
+This procedure transforms the graph into negation normal form (`[NNF] <references.rst#web-resources>`__)
 if the graph is normal before the propagation.
 
 
@@ -56,7 +56,7 @@ Gate Coalescing
 ===============
 
 Gates of the same type or logic are coalesced
-according to the rules of the Boolean algebra [Nie94]_ [Rau03]_.
+according to the rules of the Boolean algebra `[Nie94] <references.rst#papers>`__ `[Rau03] <references.rst#papers>`__.
 For example,
 *AND* gate parent and *AND* gate child are joined into a new gate,
 or the arguments of the child are added to the parent gate.
@@ -71,7 +71,7 @@ Module Detection
 Modules are defined as gates or group of nodes
 whose sub-graph does not have common nodes with the rest of the graph.
 Modules are detected and analyzed
-as separate and independent PDAGs [DR96]_.
+as separate and independent PDAGs `[DR96] <references.rst#papers>`__.
 If a module appears in the final products,
 then the products are populated with the sum of products of the module.
 This operation guarantees
@@ -87,7 +87,7 @@ Gates with the same logic and arguments
 can be considered to be multiply defined.
 Any gate from this group of multiply defined gates
 can represent all of them in the graph,
-reducing the size of the graph [Nie94]_ [NR99]_.
+reducing the size of the graph `[Nie94] <references.rst#papers>`__ `[NR99] <references.rst#papers>`__.
 The result of this preprocessing technique
 can help other preprocessing algorithms
 that work with common nodes or
@@ -106,7 +106,7 @@ with an AND/OR gate with common descendant nodes in the gate's sub-graph.
 
         x \| f(x, y) = x \| f(0, y)
 
-This technique is also called Constant Propagation [NR99]_ [Rau03]_,
+This technique is also called Constant Propagation `[NR99] <references.rst#papers>`__ `[Rau03] <references.rst#papers>`__,
 but the actual constant propagation is only the last part of the procedure;
 though, it is the main benefit of this preprocessing technique.
 Some ancestors of the common node in the sub-graph
@@ -124,7 +124,7 @@ Distributivity Detection
 
 This is a formula rewriting technique
 that detects common arguments in particular setups
-corresponding to the distributivity of *AND* and *OR* operators [Nie94]_.
+corresponding to the distributivity of *AND* and *OR* operators `[Nie94] <references.rst#papers>`__.
 
     .. math::
 
@@ -146,7 +146,7 @@ Merging Common Arguments
 ========================
 
 Common arguments of gates with the same logic
-can be merged into a new gate with the same logic as the group [NR99]_.
+can be merged into a new gate with the same logic as the group `[NR99] <references.rst#papers>`__.
 This new gate can replace the common arguments
 in the set of arguments of gates in the group.
 Successful application of this technique
@@ -163,7 +163,7 @@ Boolean Optimization
 This optimization technique
 detects redundancies in the graph
 by propagating failures of common nodes
-and noting the failure destinations [Nie94]_.
+and noting the failure destinations `[Nie94] <references.rst#papers>`__.
 The redundant occurrences of common nodes are minimized
 by directly transferring the common node
 and its failure logic to the failure destinations.

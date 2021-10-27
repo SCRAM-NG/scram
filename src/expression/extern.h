@@ -23,6 +23,7 @@
 #include <memory>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include <boost/dll/shared_library.hpp>
@@ -42,6 +43,9 @@ namespace scram::mef {
 /// It supports only very basic interface for C function lookup with its symbol.
 class ExternLibrary : public Element, public Usage {
  public:
+  /// Type string for error messages.
+  static constexpr const char* kTypeString = "extern library";
+
   /// @copydoc Element::Element
   ///
   /// @param[in] lib_path  The library path with its name.
@@ -61,14 +65,15 @@ class ExternLibrary : public Element, public Usage {
   ///
   /// @returns The function pointer resolved from the symbol.
   ///
-  /// @throws UndefinedElement  The symbol is not in the library.
+  /// @throws DLError  The symbol is not in the library.
   template <typename F>
   std::enable_if_t<std::is_function_v<F>, std::add_pointer_t<F>>
   get(const std::string& symbol) const {
     try {
       return lib_handle_.get<F>(symbol);
     } catch (const boost::system::system_error& err) {
-      SCRAM_THROW(UndefinedElement(err.what()))
+      SCRAM_THROW(DLError(err.what()))
+          << errinfo_value(symbol)
           << boost::errinfo_nested_exception(boost::current_exception());
     }
   }
@@ -88,6 +93,9 @@ class ExternFunction;  // Forward declaration to specialize abstract base.
 template <>
 class ExternFunction<void> : public Element, public Usage {
  public:
+  /// Type string for error messages.
+  static constexpr const char* kTypeString = "extern function";
+
   using Element::Element;
 
   virtual ~ExternFunction() = default;
@@ -104,9 +112,7 @@ class ExternFunction<void> : public Element, public Usage {
   apply(std::vector<Expression*> args) const = 0;
 };
 
-/// The concrete extern functions uniquely stored in a model.
-using ExternFunctionPtr = std::unique_ptr<ExternFunction<void>>;
-
+using ExternFunctionPtr = std::unique_ptr<ExternFunction<void>>;  ///< Base ptr.
 using ExternFunctionBase = ExternFunction<void>;  ///< To help Doxygen.
 
 /// Extern function abstraction to be referenced by expressions.
@@ -129,7 +135,7 @@ class ExternFunction : public ExternFunctionBase {
   /// @param[in] symbol  The symbol name for the function in the library.
   /// @param[in] library  The dynamic library to lookup the function.
   ///
-  /// @throws UndefinedElement  There is no such symbol in the library.
+  /// @throws DLError  There is no such symbol in the library.
   ExternFunction(std::string name, const std::string& symbol,
                  const ExternLibrary& library)
       : ExternFunctionBase(std::move(name)),
@@ -145,41 +151,6 @@ class ExternFunction : public ExternFunctionBase {
  private:
   const Pointer fptr_;  ///< The pointer to the extern function in a library.
 };
-
-namespace detail {  // Helpers for extern function call with Expression values.
-
-/// Evaluates the argument expressions and marshals the result to function.
-/// Marshaller of expressions to extern function calls.
-///
-/// @tparam N  The number of arguments.
-///
-/// @param[in] self  The extern function to be called with the argument values.
-/// @param[in] args  The argument expressions.
-/// @param[in] eval  The evaluator of the expressions.
-/// @param[in] values  The results of expression evaluation.
-///
-/// @returns The result of the function call.
-///
-/// @pre The number of arguments is exactly the same at runtime.
-template <int N, typename F, typename R, typename... Ts, typename... Args>
-R Marshal(const ExternFunction<R, Args...>& self,
-          const std::vector<Expression*>& args, F&& eval,
-          Ts&&... values) noexcept {
-  static_assert(N >= 0);
-  assert(args.size() >= N);
-
-  if constexpr (N == 0) {
-    assert(args.size() == sizeof...(values) && "Incorrect number of args.");
-    return self(std::forward<Ts>(values)...);
-
-  } else {
-    double value = eval(args[N - 1]);
-    return Marshal<N - 1>(self, args, std::forward<F>(eval), value,
-                          std::forward<Ts>(values)...);
-  }
-}
-
-}  // namespace detail
 
 /// Expression evaluating an extern function with expression arguments.
 ///
@@ -205,11 +176,27 @@ class ExternExpression
   /// Computes the extern function with the given evaluator for arguments.
   template <typename F>
   double Compute(F&& eval) noexcept {
-    return detail::Marshal<sizeof...(Args)>(
-        extern_function_, Expression::args(), std::forward<F>(eval));
+    return Marshal(std::forward<F>(eval),
+                   std::make_index_sequence<sizeof...(Args)>());
   }
 
  private:
+  /// Evaluates the argument expressions and marshals the result to function.
+  /// Marshaller of expressions to extern function calls.
+  ///
+  /// @tparam F  The expression evaluator type.
+  /// @tparam Is  The index sequence for the arguments vector.
+  ///
+  /// @param[in] eval  The evaluator of the expressions.
+  ///
+  /// @returns The result of the function call.
+  ///
+  /// @pre The number of arguments is exactly the same at runtime.
+  template <typename F, std::size_t... Is>
+  double Marshal(F&& eval, std::index_sequence<Is...>) noexcept {
+    return extern_function_(eval(Expression::args()[Is])...);
+  }
+
   const ExternFunction<R, Args...>& extern_function_;  ///< The source function.
 };
 

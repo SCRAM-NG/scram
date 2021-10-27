@@ -3,6 +3,9 @@ CMakeLists.txt.user
 
 # Build directories
 build/
+deploy/
+scram_doc/
+scripts/
 
 # Compiled Object files
 *.slo
@@ -23,3 +26,4 @@ build/
 
 # Pytest cache
 .cache
+.vscode/settings.json

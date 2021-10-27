@@ -19,13 +19,15 @@
 
 #include <utility>
 
-#include "utility.h"
+#include <boost/filesystem.hpp>
 
 #include "env.h"
 #include "error.h"
 #include "initializer.h"
 #include "reporter.h"
 #include "xml.h"
+
+namespace fs = boost::filesystem;
 
 namespace scram::core::test {
 
@@ -48,8 +50,7 @@ RiskAnalysisTest::RiskAnalysisTest() {
 
 void RiskAnalysisTest::ProcessInputFiles(
     const std::vector<std::string>& input_files, bool allow_extern) {
-  mef::Initializer init(input_files, settings, allow_extern);
-  model = init.model();
+  model = mef::Initializer(input_files, settings, allow_extern).model();
   analysis = std::make_unique<RiskAnalysis>(model.get(), settings);
   result_ = Result();
 }
@@ -59,7 +60,8 @@ void RiskAnalysisTest::CheckReport(const std::vector<std::string>& tree_input) {
 
   REQUIRE_NOTHROW(ProcessInputFiles(tree_input));
   REQUIRE_NOTHROW(analysis->Analyze());
-  fs::path temp_file = utility::GenerateFilePath();
+  fs::path unique_name = "scram_report_test-" + fs::unique_path().string();
+  fs::path temp_file = fs::temp_directory_path() / unique_name;
   INFO("input: " + tree_input.front());
   INFO("output: " + temp_file.string());
   REQUIRE_NOTHROW(Reporter().Report(*analysis, temp_file.string()));
@@ -78,12 +80,12 @@ const std::set<std::set<std::string>>& RiskAnalysisTest::products() {
   return result_.products;
 }
 
-std::vector<int> RiskAnalysisTest::ProductDistribution() {
+const std::vector<int>& RiskAnalysisTest::ProductDistribution() {
   assert(analysis->results().size() == 1);
   return analysis->results()
       .front()
       .fault_tree_analysis->products()
-      .Distribution();
+      .distribution();
 }
 
 void RiskAnalysisTest::PrintProducts() {
@@ -138,22 +140,20 @@ TEST_F(RiskAnalysisTest, ProcessInput) {
   CHECK(basic_events().count("ValveTwo") == 1);
 
   REQUIRE(gates().count("TopEvent"));
-  mef::Gate* top = gates().find("TopEvent")->get();
-  CHECK(top->id() == "TopEvent");
-  REQUIRE_NOTHROW(top->formula().type());
-  CHECK(top->formula().type() == mef::kAnd);
-  CHECK(top->formula().event_args().size() == 2);
+  const mef::Gate& top = *gates().find("TopEvent");
+  CHECK(top.id() == "TopEvent");
+  CHECK(top.formula().connective() == mef::kAnd);
+  CHECK(top.formula().args().size() == 2);
 
   REQUIRE(gates().count("TrainOne"));
-  mef::Gate* inter = gates().find("TrainOne")->get();
-  CHECK(inter->id() == "TrainOne");
-  REQUIRE_NOTHROW(inter->formula().type());
-  CHECK(inter->formula().type() == mef::kOr);
-  CHECK(inter->formula().event_args().size() == 2);
+  const mef::Gate& inter = *gates().find("TrainOne");
+  CHECK(inter.id() == "TrainOne");
+  CHECK(inter.formula().connective() == mef::kOr);
+  CHECK(inter.formula().args().size() == 2);
 
   REQUIRE(basic_events().count("ValveOne"));
-  mef::BasicEvent* primary = basic_events().find("ValveOne")->get();
-  CHECK(primary->id() == "ValveOne");
+  const mef::BasicEvent& primary = *basic_events().find("ValveOne");
+  CHECK(primary.id() == "ValveOne");
 }
 
 // Test Probability Assignment
@@ -161,25 +161,25 @@ TEST_F(RiskAnalysisTest, PopulateProbabilities) {
   // Input with probabilities
   std::string tree_input = "tests/input/fta/correct_tree_input_with_probs.xml";
   REQUIRE_NOTHROW(ProcessInputFiles({tree_input}));
-  REQUIRE(basic_events().size() == 4);
+  CHECK(basic_events().size() == 4);
   REQUIRE(basic_events().count("PumpOne") == 1);
   REQUIRE(basic_events().count("PumpTwo") == 1);
   REQUIRE(basic_events().count("ValveOne") == 1);
   REQUIRE(basic_events().count("ValveTwo") == 1);
 
-  mef::BasicEvent* p1 = basic_events().find("PumpOne")->get();
-  mef::BasicEvent* p2 = basic_events().find("PumpTwo")->get();
-  mef::BasicEvent* v1 = basic_events().find("ValveOne")->get();
-  mef::BasicEvent* v2 = basic_events().find("ValveTwo")->get();
+  const mef::BasicEvent& p1 = *basic_events().find("PumpOne");
+  const mef::BasicEvent& p2 = *basic_events().find("PumpTwo");
+  const mef::BasicEvent& v1 = *basic_events().find("ValveOne");
+  const mef::BasicEvent& v2 = *basic_events().find("ValveTwo");
 
-  REQUIRE_NOTHROW(p1->p());
-  REQUIRE_NOTHROW(p2->p());
-  REQUIRE_NOTHROW(v1->p());
-  REQUIRE_NOTHROW(v2->p());
-  CHECK(p1->p() == 0.6);
-  CHECK(p2->p() == 0.7);
-  CHECK(v1->p() == 0.4);
-  CHECK(v2->p() == 0.5);
+  REQUIRE_NOTHROW(p1.p());
+  REQUIRE_NOTHROW(p2.p());
+  REQUIRE_NOTHROW(v1.p());
+  REQUIRE_NOTHROW(v2.p());
+  CHECK(p1.p() == 0.6);
+  CHECK(p2.p() == 0.7);
+  CHECK(v1.p() == 0.4);
+  CHECK(v2.p() == 0.5);
 }
 
 // Test Analysis of Two train system.
@@ -248,14 +248,16 @@ TEST_P(RiskAnalysisTest, EnforceExactProbability) {
 }
 
 TEST_P(RiskAnalysisTest, AnalyzeNestedFormula) {
-  std::string nested_input = "tests/input/fta/nested_formula.xml";
-  std::set<std::set<std::string>> mcs = {{"PumpOne", "PumpTwo"},
-                                         {"PumpOne", "ValveTwo"},
-                                         {"PumpTwo", "ValveOne"},
-                                         {"ValveOne", "ValveTwo"}};
+  std::string nested_input = "tests/input/fta/nested_not.xml";
   REQUIRE_NOTHROW(ProcessInputFiles({nested_input}));
   REQUIRE_NOTHROW(analysis->Analyze());
-  CHECK(products() == mcs);
+
+  auto sets = [this]() -> std::set<std::set<std::string>> {
+    if (settings.prime_implicants())
+      return {{"not PumpOne", "ValveTwo", "PumpTwo", "not ValveOne"}};
+    return {{"ValveTwo", "PumpTwo"}};
+  }();
+  CHECK(products() == sets);
 }
 
 TEST_F(RiskAnalysisTest, ImportanceDefault) {
@@ -403,6 +405,22 @@ TEST_P(RiskAnalysisTest, AnalyzeSil) {
   };
   compare_fractions(pfd_fractions, prob_an.sil().pfd_fractions, "PFD");
   compare_fractions(pfh_fractions, prob_an.sil().pfh_fractions, "PFH");
+}
+
+TEST_F(RiskAnalysisTest, EventTreeCollectAtleastFormula) {
+  const char* tree_input = "tests/input/eta/collect_atleast_formula.xml";
+  settings.probability_analysis(true);
+  REQUIRE_NOTHROW(ProcessInputFiles({tree_input}));
+  REQUIRE_NOTHROW(analysis->Analyze());
+  CHECK(analysis->event_tree_results().size() == 1);
+}
+
+TEST_F(RiskAnalysisTest, EventTreeCollectCardinalityFormula) {
+  const char* tree_input = "tests/input/eta/collect_cardinality_formula.xml";
+  settings.probability_analysis(true);
+  REQUIRE_NOTHROW(ProcessInputFiles({tree_input}));
+  REQUIRE_NOTHROW(analysis->Analyze());
+  CHECK(analysis->event_tree_results().size() == 1);
 }
 
 TEST_P(RiskAnalysisTest, AnalyzeEventTree) {

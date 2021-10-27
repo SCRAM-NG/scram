@@ -7,17 +7,16 @@ One model per run is assumed.
 See :ref:`xml_tools` for more convenient writing and reading of XML input files.
 
 The input file format follows
-the Open-PSA Model Exchange Format ([MEF]_) version 2.0d or later.
-The extensive description is given in the above format documentation by Open-PSA,
+the Open-PSA Model Exchange Format (`[MEF] <references.rst#standards-guides-manuals-handbooks>`__) version 2.0d or later.
+An extensive description is given in the above format documentation by Open-PSA,
 and input files should be straightforward to create and understand.
 However, not all Open-PSA formatting is supported,
 and some additional assumptions/restrictions are made by SCRAM.
-See :ref:`opsa_support` for the format description
+See `opsa_support <opsa_support.rst>`__ for the format description
 and current implementation with differences.
 
 In addition to the XML format,
-the :ref:`Aralia_format` is supported indirectly.
-
+the `Aralia format <input_file.rst#aralia-input-format>`__ is supported indirectly.
 
 Encodings
 =========
@@ -38,7 +37,7 @@ Steps in XML Input Validation
       This information about models in the other input files is ignored without a warning,
       which allows reuse of files with analysis constructs from other models.
 
-#. XML input file validation against the `RELAX NG`_ :ref:`schema`.
+#. XML input file validation against the `RELAX NG Schema <https://github.com/rakhimov/scram/blob/master/share/input.rng>`_.
 #. The validation assumptions/requirements:
 
     - Construct names and references are case-sensitive.

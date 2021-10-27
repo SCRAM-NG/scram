@@ -256,11 +256,11 @@ void Reporter::ReportInformation(const core::RiskAnalysis& risk_an,
   ReportUnusedElements(risk_an.model().sequences(),
                        "Unused sequences: ", &information);
   ReportUnusedElements(risk_an.model().rules(), "Unused rules: ", &information);
-  for (const mef::EventTreePtr& event_tree : risk_an.model().event_trees()) {
-    std::string header = "In event tree " + event_tree->name() + ", ";
-    ReportUnusedElements(event_tree->branches(),
+  for (const mef::EventTree& event_tree : risk_an.model().event_trees()) {
+    std::string header = "In event tree " + event_tree.name() + ", ";
+    ReportUnusedElements(event_tree.branches(),
                          header + "unused branches: ", &information);
-    ReportUnusedElements(event_tree->functional_events(),
+    ReportUnusedElements(event_tree.functional_events(),
                          header + "unused functional events: ", &information);
   }
 }
@@ -268,9 +268,8 @@ void Reporter::ReportInformation(const core::RiskAnalysis& risk_an,
 void Reporter::ReportSoftwareInformation(xml::StreamElement* information) {
   information->AddChild("software")
       .SetAttribute("name", "SCRAM")
-      .SetAttribute("version", *version::describe() != '\0'
-                                   ? version::describe()
-                                   : version::core())
+      .SetAttribute("version", *SCRAM_GIT_REVISION != '\0' ? SCRAM_GIT_REVISION
+                                                           : SCRAM_VERSION)
       .SetAttribute("contacts", "https://scram-pra.org");
 
   std::time_t current_time = std::time(nullptr);
@@ -299,8 +298,8 @@ void Reporter::ReportModelFeatures(const mef::Model& model,
   feature("event-trees", model.event_trees());
 
   int num_functional_events = 0;
-  for (const mef::EventTreePtr& event_tree : model.event_trees())
-    num_functional_events += event_tree->functional_events().size();
+  for (const mef::EventTree& event_tree : model.event_trees())
+    num_functional_events += event_tree.functional_events().size();
   if (num_functional_events)
     model_features.AddChild("functional-events").AddText(num_functional_events);
 
@@ -342,10 +341,10 @@ void Reporter::ReportUnusedElements(const T& container,
                                     const std::string& header,
                                     xml::StreamElement* information) {
   std::string out = boost::join(
-      container | boost::adaptors::filtered([](auto& ptr) {
-        return !ptr->usage();
-      }) | boost::adaptors::transformed([](auto& ptr) -> decltype(auto) {
-        return mef::Id::unique_name(*ptr);
+      container | boost::adaptors::filtered([](const auto& arg) {
+        return !arg.usage();
+      }) | boost::adaptors::transformed([](const auto& arg) -> decltype(auto) {
+        return mef::Id::unique_name(arg);
       }),
       " ");
   if (!out.empty())
@@ -397,7 +396,7 @@ void Reporter::ReportResults(const core::RiskAnalysis::Result::Id& id,
   if (fta.products().empty() == false) {
     sum_of_products.SetAttribute(
         "distribution",
-        boost::join(fta.products().Distribution() |
+        boost::join(fta.products().distribution() |
                         boost::adaptors::transformed(
                             [](int number) { return std::to_string(number); }),
                     " "));

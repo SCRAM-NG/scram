@@ -139,11 +139,6 @@
        </item>
        <item>
         <property name="text">
-         <string extracomment="Conditioning flavor for a basic event (used as a conditioning variable for conditional probabilities)">Conditional</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
          <string extracomment="The intermediary w/ a Boolean formula as a definition. Defines the logic and interdependencies of the fault tree.">Gate</string>
         </property>
        </item>
@@ -340,7 +335,7 @@
           </widget>
          </item>
          <item row="1" column="1">
-          <widget class="QSpinBox" name="voteNumberBox">
+          <widget class="QSpinBox" name="minNumberBox">
            <property name="enabled">
             <bool>false</bool>
            </property>
@@ -482,7 +477,7 @@
   <tabstop>constantValue</tabstop>
   <tabstop>exponentialRate</tabstop>
   <tabstop>connectiveBox</tabstop>
-  <tabstop>voteNumberBox</tabstop>
+  <tabstop>minNumberBox</tabstop>
   <tabstop>addArgLine</tabstop>
   <tabstop>addArgButton</tabstop>
   <tabstop>argsList</tabstop>

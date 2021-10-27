@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2017 Olzhas Rakhimov
+# Copyright (C) 2014-2018 Olzhas Rakhimov
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 from collections import deque
 
 
-class Event(object):
+class Event:
     """Representation of a base class for an event in a fault tree.
 
     Attributes:
@@ -75,15 +75,15 @@ class BasicEvent(Event):
         super(BasicEvent, self).__init__(name)
         self.prob = prob
 
-    def to_xml(self):
+    def to_xml(self, printer):
         """Produces the Open-PSA MEF XML definition of the basic event."""
-        return ("<define-basic-event name=\"" + self.name + "\">\n"
-                "<float value=\"" + str(self.prob) + "\"/>\n"
-                "</define-basic-event>\n")
+        printer('<define-basic-event name="', self.name, '">')
+        printer('<float value="', self.prob, '"/>')
+        printer('</define-basic-event>')
 
-    def to_aralia(self):
+    def to_aralia(self, printer):
         """Produces the Aralia definition of the basic event."""
-        return "p(" + self.name + ") = " + str(self.prob) + "\n"
+        printer('p(', self.name, ') = ', self.prob)
 
 
 class HouseEvent(Event):
@@ -103,15 +103,15 @@ class HouseEvent(Event):
         super(HouseEvent, self).__init__(name)
         self.state = state
 
-    def to_xml(self):
+    def to_xml(self, printer):
         """Produces the Open-PSA MEF XML definition of the house event."""
-        return ("<define-house-event name=\"" + self.name + "\">\n"
-                "<constant value=\"" + self.state + "\"/>\n"
-                "</define-house-event>\n")
+        printer('<define-house-event name="', self.name, '">')
+        printer('<constant value="', self.state, '"/>')
+        printer('</define-house-event>')
 
-    def to_aralia(self):
+    def to_aralia(self, printer):
         """Produces the Aralia definition of the house event."""
-        return "s(" + self.name + ") = " + str(self.state) + "\n"
+        printer('s(', self.name, ') = ', self.state)
 
 
 class Gate(Event):  # pylint: disable=too-many-instance-attributes
@@ -143,14 +143,14 @@ class Gate(Event):  # pylint: disable=too-many-instance-attributes
         self.b_arguments = set()
         self.h_arguments = set()
         self.u_arguments = set()
-        self.complement_arguments = set()
 
     def num_arguments(self):
         """Returns the number of arguments."""
-        return (len(self.b_arguments) + len(self.h_arguments) +
-                len(self.g_arguments) + len(self.u_arguments))
+        return sum(
+            len(x) for x in (self.b_arguments, self.h_arguments,
+                             self.g_arguments, self.u_arguments))
 
-    def add_argument(self, argument, complement=False):
+    def add_argument(self, argument):
         """Adds argument into a collection of gate arguments.
 
         Note that this function also updates the parent set of the argument.
@@ -162,10 +162,7 @@ class Gate(Event):  # pylint: disable=too-many-instance-attributes
 
         Args:
             argument: Gate, HouseEvent, BasicEvent, or Event argument.
-            complement: Flag to treat the argument as a complement.
         """
-        if complement:
-            self.complement_arguments.add(argument)
         argument.parents.add(self)
         if isinstance(argument, Gate):
             self.g_arguments.add(argument)
@@ -192,29 +189,23 @@ class Gate(Event):  # pylint: disable=too-many-instance-attributes
                 parents.extend(parent.parents)
         return ancestors
 
-    def to_xml(self, nest=0):
+    def to_xml(self, printer, nest=False):
         """Produces the Open-PSA MEF XML definition of the gate.
 
         Args:
-            nest: The level for nesting formulas of argument gates.
+            printer: The output stream.
+            nest: Nesting of NOT connectives in formulas.
         """
 
-        def args_to_xml(type_str, container, gate, converter=None):
-            """Produces XML string representation of arguments."""
-            mef_xml = ""
-            for arg in container:
-                complement = arg in gate.complement_arguments
-                if complement:
-                    mef_xml += "<not>\n"
-                if converter:
-                    mef_xml += converter(arg)
-                else:
-                    mef_xml += "<%s name=\"%s\"/>\n" % (type_str, arg.name)
-                if complement:
-                    mef_xml += "</not>\n"
-            return mef_xml
+        def arg_to_xml(type_str, arg):
+            """Produces XML string representation of an argument."""
+            return "<%s name=\"%s\"/>\n" % (type_str, arg.name)
 
-        def convert_formula(gate, nest):
+        def args_to_xml(type_str, args):
+            """Produces XML string representation of arguments."""
+            return "".join(arg_to_xml(type_str, arg) for arg in args)
+
+        def convert_formula(gate, nest=False):
             """Converts the formula of a gate into XML representation."""
             mef_xml = ""
             if gate.operator != "null":
@@ -222,35 +213,41 @@ class Gate(Event):  # pylint: disable=too-many-instance-attributes
                 if gate.operator == "atleast":
                     mef_xml += " min=\"" + str(gate.k_num) + "\""
                 mef_xml += ">\n"
-            mef_xml += args_to_xml("house-event", gate.h_arguments, gate)
-            mef_xml += args_to_xml("basic-event", gate.b_arguments, gate)
-            mef_xml += args_to_xml("event", gate.u_arguments, gate)
+            mef_xml += args_to_xml("house-event", gate.h_arguments)
+            mef_xml += args_to_xml("basic-event", gate.b_arguments)
+            mef_xml += args_to_xml("event", gate.u_arguments)
 
-            if nest > 0:
-                mef_xml += args_to_xml("gate", gate.g_arguments, gate,
-                                       lambda x: convert_formula(x, nest - 1))
+            def converter(arg_gate):
+                """Converter for single nesting NOT connective."""
+                if gate.operator != "not" and arg_gate.operator == "not":
+                    return convert_formula(arg_gate)
+                return arg_to_xml("gate", arg_gate)
+
+            if nest:
+                mef_xml += "".join(converter(x) for x in gate.g_arguments)
             else:
-                mef_xml += args_to_xml("gate", gate.g_arguments, gate)
+                mef_xml += args_to_xml("gate", gate.g_arguments)
 
             if gate.operator != "null":
-                mef_xml += "</" + gate.operator + ">\n"
+                mef_xml += "</" + gate.operator + ">"
             return mef_xml
 
-        mef_xml = "<define-gate name=\"" + self.name + "\">\n"
-        mef_xml += convert_formula(self, nest)
-        mef_xml += "</define-gate>\n"
-        return mef_xml
+        printer('<define-gate name="', self.name, '">')
+        printer(convert_formula(self, nest))
+        printer('</define-gate>')
 
-    def to_aralia(self):
+    def to_aralia(self, printer):
         """Produces the Aralia definition of the gate.
 
         The transformation to the Aralia format
         does not support complement or undefined arguments.
 
+        Args:
+            printer: The output stream.
+
         Raises:
             KeyError: The gate operator is not supported.
         """
-        assert not self.complement_arguments
         assert not self.u_arguments
 
         def get_format(operator):
@@ -278,10 +275,10 @@ class Gate(Event):  # pylint: disable=too-many-instance-attributes
             args.append(g_arg.name)
         line.append(div.join(args))
         line.append(line_end)
-        return "".join(line) + "\n"
+        printer("".join(line))
 
 
-class CcfGroup(object):  # pylint: disable=too-few-public-methods
+class CcfGroup:  # pylint: disable=too-few-public-methods
     """Representation of CCF groups in a fault tree.
 
     Attributes:
@@ -304,28 +301,34 @@ class CcfGroup(object):  # pylint: disable=too-few-public-methods
         self.model = None
         self.factors = []
 
-    def to_xml(self):
+    def to_xml(self, printer):
         """Produces the Open-PSA MEF XML definition of the CCF group."""
-        mef_xml = ("<define-CCF-group name=\"" + self.name + "\""
-                   " model=\"" + self.model + "\">\n<members>\n")
+        printer('<define-CCF-group name="', self.name, '"', ' model="',
+                self.model, '">')
+        printer('<members>')
         for member in self.members:
-            mef_xml += "<basic-event name=\"" + member.name + "\"/>\n"
-        mef_xml += ("</members>\n<distribution>\n<float value=\"" +
-                    str(self.prob) + "\"/>\n</distribution>\n")
-        mef_xml += "<factors>\n"
+            printer('<basic-event name="', member.name, '"/>')
+        printer('</members>')
+
+        printer('<distribution>')
+        printer('<float value="', self.prob, '"/>')
+        printer('</distribution>')
+
+        printer('<factors>')
         assert self.model == "MGL"
         assert self.factors
         level = 2
         for factor in self.factors:
-            mef_xml += ("<factor level=\"" + str(level) + "\">\n"
-                        "<float value=\"" + str(factor) + "\"/>\n</factor>\n")
+            printer('<factor level="', level, '">')
+            printer('<float value="', factor, '"/>')
+            printer('</factor>')
             level += 1
+        printer('</factors>')
 
-        mef_xml += "</factors>\n</define-CCF-group>\n"
-        return mef_xml
+        printer('</define-CCF-group>')
 
 
-class FaultTree(object):  # pylint: disable=too-many-instance-attributes
+class FaultTree:  # pylint: disable=too-many-instance-attributes
     """Representation of a fault tree for general purposes.
 
     Attributes:
@@ -354,7 +357,7 @@ class FaultTree(object):  # pylint: disable=too-many-instance-attributes
         self.ccf_groups = []
         self.non_ccf_events = []  # must be assigned directly.
 
-    def to_xml(self, nest=0):
+    def to_xml(self, printer, nest=False):
         """Produces the Open-PSA MEF XML definition of the fault tree.
 
         The fault tree is produced breadth-first.
@@ -362,60 +365,59 @@ class FaultTree(object):  # pylint: disable=too-many-instance-attributes
         The fault tree must be valid and well-formed.
 
         Args:
+            printer: The output stream.
             nest: A nesting factor for the Boolean formulae.
-
-        Returns:
-            XML snippet representing the fault tree container.
         """
-        mef_xml = "<opsa-mef>\n"
-        mef_xml += "<define-fault-tree name=\"%s\">\n" % self.name
+        printer('<opsa-mef>')
+        printer('<define-fault-tree name="', self.name, '">')
 
         sorted_gates = toposort_gates(self.top_gates or [self.top_gate],
                                       self.gates)
         for gate in sorted_gates:
-            mef_xml += gate.to_xml(nest)
+            gate.to_xml(printer, nest)
 
         for ccf_group in self.ccf_groups:
-            mef_xml += ccf_group.to_xml()
-        mef_xml += "</define-fault-tree>\n"
+            ccf_group.to_xml(printer)
+        printer('</define-fault-tree>')
 
-        mef_xml += "<model-data>\n"
-        if self.ccf_groups:
-            for basic_event in self.non_ccf_events:
-                mef_xml += basic_event.to_xml()
-        else:
-            for basic_event in self.basic_events:
-                mef_xml += basic_event.to_xml()
+        printer('<model-data>')
+        for basic_event in (self.non_ccf_events
+                            if self.ccf_groups else self.basic_events):
+            basic_event.to_xml(printer)
 
         for house_event in self.house_events:
-            mef_xml += house_event.to_xml()
-        mef_xml += "</model-data>\n"
-        mef_xml += "</opsa-mef>\n"
-        return mef_xml
+            house_event.to_xml(printer)
+        printer('</model-data>')
+        printer('</opsa-mef>')
 
-    def to_aralia(self):
+    def to_aralia(self, printer):
         """Produces the Aralia definition of the fault tree.
 
         Note that the Aralia format does not support advanced features.
         The fault tree must be valid and well formed for printing.
 
-        Returns:
-            A text snippet representing the fault tree.
+        Args:
+            printer: The output stream.
 
         Raises:
             KeyError: Some gate operator is not supported.
         """
-        out_txt = self.name + "\n\n"
+        printer(self.name)
+        printer()
+
         sorted_gates = toposort_gates([self.top_gate], self.gates)
         for gate in sorted_gates:
-            out_txt += gate.to_aralia()
-        out_txt += "\n"
+            gate.to_aralia(printer)
+
+        printer()
+
         for basic_event in self.basic_events:
-            out_txt += basic_event.to_aralia()
-        out_txt += "\n"
+            basic_event.to_aralia(printer)
+
+        printer()
+
         for house_event in self.house_events:
-            out_txt += house_event.to_aralia()
-        return out_txt
+            house_event.to_aralia(printer)
 
 
 def toposort_gates(root_gates, gates):

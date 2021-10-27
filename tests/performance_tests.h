@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-#include <catch.hpp>
+#include <catch2/catch.hpp>
 
 #include "fault_tree_analysis.h"
 #include "initializer.h"
@@ -72,7 +72,7 @@ class PerformanceTest {
     return analysis->results().front().probability_analysis->analysis_time();
   }
 
-  std::shared_ptr<mef::Model> model;
+  std::unique_ptr<mef::Model> model;
   std::unique_ptr<RiskAnalysis> analysis;
   Settings settings;
   double delta;  // The range indicator for values.

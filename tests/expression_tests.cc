@@ -24,7 +24,7 @@
 #include "expression/random_deviate.h"
 #include "parameter.h"
 
-#include <catch.hpp>
+#include <catch2/catch.hpp>
 
 #include "error.h"
 
@@ -144,10 +144,9 @@ void TestNonPositive(Expression* expr, OpenExpression* arg,
 
 TEST_CASE("ExpressionTest.Parameter", "[mef::expression]") {
   OpenExpression expr(10, 8);
-  ParameterPtr param;
-  REQUIRE_NOTHROW(param = ParameterPtr(new Parameter("param")));
-  REQUIRE_NOTHROW(param->expression(&expr));
-  REQUIRE_THROWS_AS(param->expression(&expr), LogicError);
+  Parameter param("param");
+  REQUIRE_NOTHROW(param.expression(&expr));
+  REQUIRE_THROWS_AS(param.expression(&expr), LogicError);
 }
 
 TEST_CASE("ExpressionTest.Exponential", "[mef::expression]") {
@@ -294,7 +293,7 @@ TEST_CASE("ExpressionTest.PeriodicTest11", "[mef::expression]") {
   available_at_test.mean = false;
   EXPECT_NEAR(0.668316, dev->value(), 1e-5);
   time.mean = 4750;
-  CHECK(dev->value() == 1);
+  CHECK(dev->value() == Approx(1));
   time.mean = 4870;
   EXPECT_NEAR(0.996715, dev->value(), 1e-5);
   time.mean = 8710;

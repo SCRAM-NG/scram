@@ -36,7 +36,7 @@
 #include "src/ext/variant.h"
 
 #include "guiassert.h"
-#include "overload.h"
+#include "translate.h"
 #include "validator.h"
 
 namespace scram::gui {
@@ -57,16 +57,15 @@ EventDialog::EventDialog(mef::Model *model, QWidget *parent)
     addArgLine->setValidator(Validator::name());
     containerFaultTreeName->setValidator(Validator::name());
 
-    connect(typeBox, OVERLOAD(QComboBox, currentIndexChanged, int),
+    connect(typeBox, qOverload<int>(&QComboBox::currentIndexChanged),
             [this](int index) {
                 switch (static_cast<EventType>(1 << index)) {
                 case HouseEvent:
-                    GUI_ASSERT(typeBox->currentText() == tr("House event"), );
+                    GUI_ASSERT(typeBox->currentText() == _("House event"), );
                     stackedWidgetType->setCurrentWidget(tabBoolean);
                     break;
                 case BasicEvent:
                 case Undeveloped:
-                case Conditional:
                     stackedWidgetType->setCurrentWidget(tabExpression);
                     break;
                 case Gate:
@@ -89,22 +88,22 @@ EventDialog::EventDialog(mef::Model *model, QWidget *parent)
                 }
                 validate();
             });
-    connect(expressionType, OVERLOAD(QComboBox, currentIndexChanged, int), this,
-            &EventDialog::validate);
+    connect(expressionType, qOverload<int>(&QComboBox::currentIndexChanged),
+            this, &EventDialog::validate);
     connect(expressionBox, &QGroupBox::toggled, this, &EventDialog::validate);
     connectLineEdits(
         {nameLine, constantValue, exponentialRate, containerFaultTreeName});
-    connect(connectiveBox, OVERLOAD(QComboBox, currentIndexChanged, int),
+    connect(connectiveBox, qOverload<int>(&QComboBox::currentIndexChanged),
             [this](int index) {
-                voteNumberBox->setEnabled(index == mef::kVote);
+                minNumberBox->setEnabled(index == mef::kAtleast);
                 validate();
             });
     connect(this, &EventDialog::formulaArgsChanged, [this] {
         int numArgs = argsList->count();
         int newMax = numArgs > 2 ? (numArgs - 1) : 2;
-        if (voteNumberBox->value() > newMax)
-            voteNumberBox->setValue(newMax);
-        voteNumberBox->setMaximum(newMax);
+        if (minNumberBox->value() > newMax)
+            minNumberBox->setValue(newMax);
+        minNumberBox->setMaximum(newMax);
         validate();
     });
     connect(addArgLine, &QLineEdit::returnPressed, this, [this] {
@@ -115,21 +114,21 @@ EventDialog::EventDialog(mef::Model *model, QWidget *parent)
         if (hasFormulaArg(name)) {
             m_errorBar->showMessage(
                 //: Duplicate arguments are not allowed in a formula.
-                tr("The argument '%1' is already in formula.").arg(name));
+                _("The argument '%1' is already in formula.").arg(name));
             return;
         }
         if (name == nameLine->text()) {
             m_errorBar->showMessage(
                 //: Self-cycle is also called a loop in a graph.
-                tr("The argument '%1' would introduce a self-cycle.")
-                    .arg(name));
+                _("The argument '%1' would introduce a self-cycle.").arg(name));
             return;
         } else if (m_event) {
-            auto it = m_model->gates().find(name.toStdString());
-            if (it != m_model->gates().end() && checkCycle(it->get())) {
+            auto it =
+                ext::find(m_model->table<mef::Gate>(), name.toStdString());
+            if (it && checkCycle(&*it)) {
                 m_errorBar->showMessage(
                     //: Fault trees are acyclic graphs.
-                    tr("The argument '%1' would introduce a cycle.").arg(name));
+                    _("The argument '%1' would introduce a cycle.").arg(name));
                 return;
             }
         }
@@ -207,10 +206,10 @@ bool EventDialog::checkCycle(const mef::Gate *gate)
         EventDialog *m_self;
     } visitor{this};
 
-    for (const mef::Formula::EventArg &arg : gate->formula().event_args()) {
-        if (ext::as<const mef::Element *>(arg) == m_event)
+    for (const mef::Formula::Arg &arg : gate->formula().args()) {
+        if (ext::as<const mef::Element *>(arg.event) == m_event)
             return true;
-        if (std::visit(visitor, arg))
+        if (std::visit(visitor, arg.event))
             return true;
     }
     return false;
@@ -220,27 +219,29 @@ template <class T>
 mef::FaultTree *EventDialog::getFaultTree(const T *event) const
 {
     // Find the fault tree of the first parent gate.
-    auto it =
-        boost::find_if(m_model->gates(), [&event](const mef::GatePtr &gate) {
-            return boost::find(gate->formula().event_args(),
-                               mef::Formula::EventArg(const_cast<T *>(event)))
-                   != gate->formula().event_args().end();
-        });
+    auto it = boost::find_if(m_model->gates(), [&event](const mef::Gate &gate) {
+        auto it_arg = boost::find_if(
+            gate.formula().args(), [&event](const mef::Formula::Arg &arg) {
+                return arg.event
+                       == mef::Formula::ArgEvent(const_cast<T *>(event));
+            });
+        return it_arg != gate.formula().args().end();
+    });
     if (it == m_model->gates().end())
         return nullptr;
-    return getFaultTree(it->get());
+    return getFaultTree(&*it);
 }
 
 /// Finds fault tree container of the gate.
 template <>
 mef::FaultTree *EventDialog::getFaultTree(const mef::Gate *event) const
 {
-    auto it = boost::find_if(m_model->fault_trees(),
-                             [&event](const mef::FaultTreePtr &faultTree) {
-                                 return faultTree->gates().count(event->name());
+    auto it = boost::find_if(m_model->table<mef::FaultTree>(),
+                             [&event](const mef::FaultTree &faultTree) {
+                                 return faultTree.gates().count(event->name());
                              });
-    GUI_ASSERT(it != m_model->fault_trees().end(), nullptr);
-    return it->get();
+    GUI_ASSERT(it != m_model->table<mef::FaultTree>().end(), nullptr);
+    return &*it;
 }
 
 template <class T>
@@ -304,17 +305,15 @@ void EventDialog::setupData(const model::Gate &element)
         static_cast<QListView *>(typeBox->view())
             ->setRowHidden(ext::one_bit_index(BasicEvent), true);
         static_cast<QListView *>(typeBox->view())
-            ->setRowHidden(ext::one_bit_index(Conditional), true);
-        static_cast<QListView *>(typeBox->view())
             ->setRowHidden(ext::one_bit_index(Undeveloped), true);
     }
 
     connectiveBox->setCurrentIndex(element.type());
-    if (element.type() == mef::kVote)
-        voteNumberBox->setValue(element.voteNumber());
-    for (const mef::Formula::EventArg &arg : element.args())
-        argsList->addItem(
-            QString::fromStdString(ext::as<const mef::Event *>(arg)->id()));
+    if (element.minNumber())
+        minNumberBox->setValue(*element.minNumber());
+    for (const mef::Formula::Arg &arg : element.args())
+        argsList->addItem(QString::fromStdString(
+            ext::as<const mef::Event *>(arg.event)->id()));
     emit formulaArgsChanged(); ///< @todo Bogus signal order conflicts.
 }
 
@@ -356,7 +355,7 @@ void EventDialog::validate()
             m_model->GetEvent(name.toStdString());
             m_errorBar->showMessage(
                 //: Duplicate event definition in the model.
-                tr("The event with name '%1' already exists.").arg(name));
+                _("The event with name '%1' already exists.").arg(name));
             return;
         }
     } catch (const mef::UndefinedElement &) {
@@ -364,7 +363,7 @@ void EventDialog::validate()
 
     if (!tabFormula->isHidden() && hasFormulaArg(name)) {
         m_errorBar->showMessage(
-            tr("Name '%1' would introduce a self-cycle.").arg(name));
+            _("Name '%1' would introduce a self-cycle.").arg(name));
         return;
     }
     nameLine->setStyleSheet({});
@@ -386,12 +385,12 @@ void EventDialog::validate()
 
     if (!tabFormula->isHidden()) {
         int numArgs = argsList->count();
-        switch (static_cast<mef::Operator>(connectiveBox->currentIndex())) {
+        switch (static_cast<mef::Connective>(connectiveBox->currentIndex())) {
         case mef::kNot:
         case mef::kNull:
             if (numArgs != 1) {
                 m_errorBar->showMessage(
-                    tr("%1 connective requires a single argument.")
+                    _("%1 connective requires a single argument.")
                         .arg(connectiveBox->currentText()));
                 return;
             }
@@ -402,7 +401,7 @@ void EventDialog::validate()
         case mef::kNor:
             if (numArgs < 2) {
                 m_errorBar->showMessage(
-                    tr("%1 connective requires 2 or more arguments.")
+                    _("%1 connective requires 2 or more arguments.")
                         .arg(connectiveBox->currentText()));
                 return;
             }
@@ -410,18 +409,18 @@ void EventDialog::validate()
         case mef::kXor:
             if (numArgs != 2) {
                 m_errorBar->showMessage(
-                    tr("%1 connective requires exactly 2 arguments.")
+                    _("%1 connective requires exactly 2 arguments.")
                         .arg(connectiveBox->currentText()));
                 return;
             }
             break;
-        case mef::kVote:
-            if (numArgs <= voteNumberBox->value()) {
-                int numReqArgs = voteNumberBox->value() + 1;
+        case mef::kAtleast:
+            if (numArgs <= minNumberBox->value()) {
+                int numReqArgs = minNumberBox->value() + 1;
                 m_errorBar->showMessage(
                     //: The number of required arguments is always more than 2.
-                    tr("%1 connective requires at-least %n arguments.", "",
-                       numReqArgs)
+                    _("%1 connective requires at-least %n arguments.", "",
+                      numReqArgs)
                         .arg(connectiveBox->currentText()));
                 return;
             }
@@ -438,10 +437,10 @@ void EventDialog::validate()
         QString faultTreeName = containerFaultTreeName->text();
         if (auto it = ext::find(m_model->fault_trees(),
                                 faultTreeName.toStdString())) {
-            GUI_ASSERT((*it)->top_events().empty() == false, );
+            GUI_ASSERT(it->top_events().empty() == false, );
             m_errorBar->showMessage(
                 //: Fault tree redefinition.
-                tr("Fault tree '%1' is already defined with a top gate.")
+                _("Fault tree '%1' is already defined with a top gate.")
                     .arg(faultTreeName));
             containerFaultTreeName->setStyleSheet(yellowBackground);
             return;
@@ -496,8 +495,8 @@ void EventDialog::setupArgCompleter()
     allEvents.reserve(m_model->gates().size() + m_model->basic_events().size()
                       + m_model->house_events().size());
     auto addEvents = [&allEvents](const auto &eventContainer) {
-        for (const auto &eventPtr : eventContainer)
-            allEvents.push_back(QString::fromStdString(eventPtr->id()));
+        for (const auto &event : eventContainer)
+            allEvents.push_back(QString::fromStdString(event.id()));
     };
     addEvents(m_model->gates());
     addEvents(m_model->basic_events());

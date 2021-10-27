@@ -21,6 +21,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -39,6 +40,7 @@
 #include "src/model.h"
 
 #include "command.h"
+#include "translate.h"
 
 namespace scram::gui::model {
 
@@ -106,8 +108,7 @@ public:
         /// Stores an element, its new name and parent containers.
         SetId(T *event, QString name, mef::Model *model,
               mef::FaultTree *faultTree = nullptr)
-            : Involution(QObject::tr("Rename event '%1' to '%2'")
-                             .arg(event->id(), name)),
+            : Involution(_("Rename event '%1' to '%2'").arg(event->id(), name)),
               m_name(std::move(name)), m_event(event), m_model(model),
               m_faultTree(faultTree)
         {
@@ -182,20 +183,16 @@ class BasicEvent : public Element, public Proxy<BasicEvent, mef::BasicEvent>
 
 public:
     /// Basic event flavors.
-    enum Flavor { Basic = 0, Undeveloped, Conditional };
+    enum Flavor { Basic = 0, Undeveloped };
 
     /// Converts a basic event flavor to a UI string.
     static QString flavorToString(Flavor flavor)
     {
         switch (flavor) {
         case Basic:
-            return tr("Basic");
+            return _("Basic");
         case Undeveloped:
-            return tr("Undeveloped");
-        case Conditional:
-            //: Actually, this is 'conditioning'
-            //: since the event is the condition for some sub-tree.
-            return tr("Conditional");
+            return _("Undeveloped");
         }
         assert(false);
     }
@@ -277,7 +274,7 @@ private:
 /// Converts Boolean value to a UI string.
 inline QString boolToString(bool value)
 {
-    return value ? QObject::tr("True") : QObject::tr("False");
+    return value ? _("True") : _("False");
 }
 
 /// The proxy to manage mef::HouseEvent.
@@ -331,52 +328,54 @@ public:
     /// @param[in,out] gate  The MEF gate with a flat formula.
     explicit Gate(mef::Gate *gate) : Element(gate) {}
 
-    /// @returns The current operator type of the gate.
-    template <typename T = mef::Operator>
+    /// @returns The current connective of the gate.
+    template <typename T = mef::Connective>
     T type() const
     {
         if constexpr (std::is_same_v<T, QString>) {
             switch (type()) {
             case mef::kAnd:
-                return tr("and");
+                return _("and");
             case mef::kOr:
-                return tr("or");
-            case mef::kVote:
+                return _("or");
+            case mef::kAtleast:
                 //: Also named as 'vote', 'voting or', 'combination', 'combo'.
-                return tr("at-least %1").arg(voteNumber());
+                return _("at-least %1").arg(*minNumber());
             case mef::kXor:
-                return tr("xor");
+                return _("xor");
             case mef::kNot:
-                return tr("not");
+                return _("not");
             case mef::kNull:
                 //: This is 'pass-through' or 'no-action' gate type.
-                return tr("null");
+                return _("null");
             case mef::kNand:
                 //: not and.
-                return tr("nand");
+                return _("nand");
             case mef::kNor:
                 //: not or.
-                return tr("nor");
+                return _("nor");
+            default:
+                assert(false && "Unsupported connectives.");
             }
-            assert(false);
 
         } else {
-            return data()->formula().type();
+            return data()->formula().connective();
         }
     }
 
     /// @returns The number of gate arguments.
-    int numArgs() const { return data()->formula().num_args(); }
+    int numArgs() const { return args().size(); }
 
-    /// @returns The vote number of the gate formula.
-    ///
-    /// @pre The vote number is appropriate for the formula type.
-    int voteNumber() const { return data()->formula().vote_number(); }
+    /// @returns The min number of the gate formula.
+    std::optional<int> minNumber() const
+    {
+        return data()->formula().min_number();
+    }
 
     /// @returns Event arguments of the gate.
-    const std::vector<mef::Formula::EventArg> &args() const
+    const std::vector<mef::Formula::Arg> &args() const
     {
-        return data()->formula().event_args();
+        return data()->formula().args();
     }
 
     /// Formula modification commands.
@@ -386,13 +385,13 @@ public:
     {
     public:
         /// Stores the gate and its new formula.
-        SetFormula(Gate *gate, mef::FormulaPtr formula);
+        SetFormula(Gate *gate, std::unique_ptr<mef::Formula> formula);
 
         void redo() override; ///< Applies the gate formula changes.
 
     private:
-        mef::FormulaPtr m_formula; ///< The new formula.
-        Gate *m_gate;              ///< The receiver gate for the formula.
+        std::unique_ptr<mef::Formula> m_formula; ///< The new formula.
+        Gate *m_gate; ///< The receiver gate for the formula.
     };
 
 signals:
@@ -423,10 +422,8 @@ public:
     const ProxyTable<HouseEvent> &houseEvents() const { return m_houseEvents; }
     const ProxyTable<BasicEvent> &basicEvents() const { return m_basicEvents; }
     const ProxyTable<Gate> &gates() const { return m_gates; }
-    const mef::ElementTable<mef::FaultTreePtr> &faultTrees() const
-    {
-        return m_model->fault_trees();
-    }
+    auto faultTrees() const { return m_model->fault_trees(); }
+    auto faultTrees() { return m_model->table<mef::FaultTree>(); }
     /// @}
 
     /// Generic access to event tables.
@@ -448,7 +445,7 @@ public:
     /// @param[in] event  The event defined/registered in the model.
     ///
     /// @returns The parent gates of an event.
-    std::vector<Gate *> parents(mef::Formula::EventArg event) const;
+    std::vector<Gate *> parents(mef::Formula::ArgEvent event) const;
 
     /// Sets the optional name of the model.
     ///
@@ -477,7 +474,7 @@ public:
     {
     public:
         /// Stores the new fault tree and the target model.
-        AddFaultTree(mef::FaultTreePtr faultTree, Model *model);
+        AddFaultTree(std::unique_ptr<mef::FaultTree> faultTree, Model *model);
 
         void redo() override; ///< Adds the fault tree.
         void undo() override; ///< Removes the fault tree.
@@ -493,7 +490,7 @@ public:
     private:
         Model *m_model; ///< The model for the fault tree addition.
         mef::FaultTree *const m_address; ///< The data MEF fault tree.
-        mef::FaultTreePtr m_faultTree;   ///< The proxy of the MEF fault tree.
+        std::unique_ptr<mef::FaultTree> m_faultTree; ///< The lifetime.
     };
 
     /// Removes a fault tree from the model.
@@ -518,8 +515,8 @@ public:
         /// Stores the newly defined event and its destination container.
         AddEvent(std::unique_ptr<typename T::Origin> event, Model *model,
                  mef::FaultTree *faultTree = nullptr)
-            : QUndoCommand(QObject::tr("Add event '%1'")
-                               .arg(QString::fromStdString(event->id()))),
+            : QUndoCommand(
+                  _("Add event '%1'").arg(QString::fromStdString(event->id()))),
               m_model(model), m_proxy(std::make_unique<T>(event.get())),
               m_address(event.get()), m_event(std::move(event)),
               m_faultTree(faultTree)
@@ -578,9 +575,8 @@ public:
     public:
         /// Stores model containers and the existing event for removal.
         RemoveEvent(T *event, Model *model, mef::FaultTree *faultTree = nullptr)
-            : Inverse<AddEvent<T>>(
-                  event, model, faultTree,
-                  QObject::tr("Remove event '%1'").arg(event->id()))
+            : Inverse<AddEvent<T>>(event, model, faultTree,
+                                   _("Remove event '%1'").arg(event->id()))
         {
         }
     };
@@ -601,8 +597,8 @@ public:
         ChangeEventType(E *currentEvent,
                         std::unique_ptr<typename T::Origin> newEvent,
                         Model *model, mef::FaultTree *faultTree = nullptr)
-            : QUndoCommand(QObject::tr("Change the type of event '%1'")
-                               .arg(currentEvent->id())),
+            : QUndoCommand(
+                  _("Change the type of event '%1'").arg(currentEvent->id())),
               m_switchTo{currentEvent, std::make_unique<T>(newEvent.get()),
                          std::move(newEvent)},
               m_model(model), m_faultTree(faultTree),
@@ -641,10 +637,10 @@ public:
                     remove(m_address->data(), self.m_faultTree);
                     add(nextAddress->data(), self.m_faultTree);
                 }
-                for (Gate *gate : self.m_gates) {
-                    gate->data()->formula().RemoveArgument(m_address->data());
-                    gate->data()->formula().AddArgument(nextAddress->data());
-                }
+                for (Gate *gate : self.m_gates)
+                    gate->data()->formula().Swap(m_address->data(),
+                                                 nextAddress->data());
+
                 for (Gate *gate : self.m_gates)
                     emit gate->formulaChanged();
 
@@ -685,15 +681,6 @@ signals:
     /// @}
 
 private:
-    /// Normalizes the model to the GUI expectations.
-    ///
-    /// @param[in,out] model  The valid and fully initialized MEF model.
-    ///
-    /// @post No house events or basic events in fault tree containers.
-    ///
-    /// @todo Remove normalization upon full container support for elements.
-    void normalize(mef::Model *model);
-
     mef::Model *m_model; ///< The MEF model with data.
 
     /// Proxy element tables.

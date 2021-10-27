@@ -6,7 +6,7 @@ Open Probabilistic Safety Assessment Initiative hopes
 to bring international community of PSA together
 to improve the tools, techniques, and quality of PSA
 in a non-competitive and open manner
-for the benefit of the community [OPSA]_ [MEF]_.
+for the benefit of the community `[OPSA] <references.rst#web-resources>`__ `[MEF] <references.rst#standards-guides-manuals-handbooks>`__.
 
 The initiative deals with the following issues in the current PSA:
 
@@ -22,7 +22,7 @@ The initiative deals with the following issues in the current PSA:
 - No universal format for industry data
 
 In order to facilitate information exchange and quality assurance,
-The Open-PSA community has developed a model exchange format([MEF]_) for PSA
+the Open-PSA community has developed a model exchange format(`[MEF] <references.rst#standards-guides-manuals-handbooks>`__) for PSA
 that covers most needs to describe the analysis input for PSA tools.
 Moreover, the MEF defines the following requirements
 for its development and use:
@@ -38,7 +38,7 @@ The MEF is designed with the "declarative modeling" criterion
 and interactions which the model represents".
 This paradigm is followed from the structured programming techniques.
 
-More information about the initiative and format can be found on [OPSA]_.
+More information about the initiative and format can be found on `[OPSA] <references.rst#web-resources>`__.
 
 
 .. _opsa_support:
@@ -47,7 +47,7 @@ Supported Open-PSA MEF Features
 ===============================
 
 The difference between `the Open-PSA MEF schema <https://github.com/open-psa/schemas/>`_
-and SCRAM's :ref:`schema` can be used
+and SCRAM's `schema <opsa_support.rst>`__ can be used
 to identify the supported and unsupported features.
 
 - Label
@@ -91,14 +91,15 @@ to identify the supported and unsupported features.
 Deviations from the Open-PSA MEF
 ================================
 
+- Arbitrary nesting of Boolean formulae is `not allowed <https://github.com/open-psa/mef/pull/58>`_.
+- XOR and IFF connectives `require exactly 2 arguments <https://github.com/open-psa/mef/pull/59>`_.
 - Extern function and library are implemented following
   `the new proposal <https://github.com/open-psa/mef/pull/53>`_.
 - `XInclude instead of the 'include' directive <https://github.com/open-psa/mef/pull/47>`_.
 - Redefinition of fault tree variables (e.g., basic-events, parameters) is an
   `error <https://github.com/open-psa/mef/issues/50>`_.
 - Substitution names are required.
-- Attributes are not inherited.
-  `Issue #231 <https://github.com/rakhimov/scram/issues/231>`_
+- Attributes must be `unique <https://github.com/open-psa/mef/issues/60>`_.
 - Recursive parameters are not allowed.
 - Recursive event-tree rules and links (instructions) are not allowed.
 - Mixing collect-expression and collect-formula is not allowed.

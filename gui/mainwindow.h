@@ -61,17 +61,17 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-    /// Loads a model and analysis configuration from a file.
+    /// Loads a model and analysis from a project file.
     ///
-    /// @param[in] configPath  The path to the configuration file.
+    /// @param[in] projectFilePath  The path to the project configuration file.
     /// @param[in] inputFiles  Additional input files for model initialization.
     ///
     /// @returns true if the initialization is successful.
     ///
     /// @post No side effects are left-over
     ///       if the initialization is not successful.
-    bool setConfig(const std::string &configPath,
-                   std::vector<std::string> inputFiles = {});
+    bool setProjectFile(const std::string &projectFilePath,
+                        std::vector<std::string> inputFiles = {});
 
     /// Adds a new set of model elements from input files.
     ///
@@ -85,8 +85,8 @@ public:
     bool addInputFiles(const std::vector<std::string> &inputFiles);
 
 signals:
-    /// Indicates addition of new input or configuration files.
-    void configChanged();
+    /// Indicates addition of new input or project files.
+    void projectChanged();
 
 private slots:
     /// Opens a new project configuration.
@@ -106,10 +106,14 @@ private slots:
     /// If the project is new,
     /// it does not have a default destination file.
     /// The user is required to specify the file upon save.
-    void saveModel();
+    ///
+    /// @returns true if the model is saved successfully.
+    bool saveModel();
 
     /// Saves the project to a potentially different file.
-    void saveModelAs();
+    ///
+    /// @returns true if the model save is successful.
+    bool saveModelAs();
 
     /// Exports the current analysis report.
     void exportReportAs();
@@ -261,7 +265,9 @@ private:
     /// Saves the model and sets the model file.
     ///
     /// @param destination  The destination file to become the main model file.
-    void saveToFile(std::string destination);
+    ///
+    /// @returns true if the save is successful.
+    bool saveToFile(std::string destination);
 
     /// Updates the recent file tracking.
     ///
@@ -299,7 +305,7 @@ private:
 
     std::vector<std::string> m_inputFiles;    ///< The project model files.
     core::Settings m_settings;                ///< The analysis settings.
-    std::shared_ptr<mef::Model> m_model;      ///< The analysis model.
+    std::unique_ptr<mef::Model> m_model;      ///< The analysis model.
     std::unique_ptr<model::Model> m_guiModel; ///< The GUI Model wrapper.
     std::unique_ptr<core::RiskAnalysis> m_analysis; ///< Report container.
 };

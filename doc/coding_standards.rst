@@ -180,21 +180,9 @@ Core C++ Code
       (class/function/namespace/typedef/...), e.g., ``CalculateProbability``.
       Avoid abbreviating the name, e.g., ``CalculateProb``.
 
-- Prefer the terminology and concepts of Boolean algebra and graph theory
-  to the terminology and concepts of risk analysis in **analysis code**.
-  For example, a Boolean product is more general and appropriate for analysis facilities
-  than cut sets or prime implicants.
-
-    * There is no Boolean operator for the K-out-of-N logic.
-      This gate in fault tree analysis has many names
-      (Voting, Combination, atleast, K/N, etc.),
-      and there doesn't seem to be a consensus among sources and tools.
-      The Open-PSA MEF "atleast" best captures the nature of the gate;
-      however, the "atleast" is awkward to use in code and API
-      (Atleast vs. AtLeast vs. atleast vs. at_least).
-      In SCRAM, the "vote" word must be used consistently
-      to represent this gate in code and API.
-      The code that deals with the Open-PSA MEF may use the "atleast".
+- In **analysis code**, prefer the terminology and concepts of Boolean algebra, graph theory, sets
+  (i.e., the solution domain)
+  to the terminology and concepts of risk analysis (i.e., the problem domain).
 
 - In performance-critical **analysis code**
   (BDD variable ordering, Boolean formula rewriting/preprocessing, etc.),
@@ -236,6 +224,13 @@ GUI Code
 
 - Automatic (implicit) connection of signals and slots is forbidden.
 
+- Avoid using unqualified ``tr()`` calls.
+  Qt Linguist automatic context deduction is flaky
+  and often fails with modern C++ code.
+  ``_()`` (a-la ``gettext``) is provided to always resolve
+  the context to ``QObject::tr()`` (the common case).
+  Add extra translation/disambiguation context as needed (the rare case).
+
 
 Monitoring Code Quality
 =======================
@@ -270,15 +265,15 @@ Python
 #. Code quality and style check with Pylint_
 #. Profiling with PyVmMonitor_
 #. Code coverage check with coverage_ and reporting with Codecov_
-#. Continuous code quality control on Landscape_ with Prospector_
+#. Continuous code quality control on Codacy_ with Prospector_
 #. Consistent code formatting with YAPF_
 
 .. _Pylint: https://www.pylint.org/
 .. _PyVmMonitor: http://www.pyvmmonitor.com/
 .. _coverage: https://coverage.readthedocs.io/en/latest/
 .. _Codecov: https://codecov.io/github/rakhimov/scram
-.. _Landscape: https://landscape.io/
-.. _Prospector: https://github.com/landscapeio/prospector
+.. _Codacy: https://codacy.com/
+.. _Prospector: https://github.com/PyCQA/prospector
 .. _YAPF: https://github.com/google/yapf
 
 
@@ -404,7 +399,7 @@ Conventions in Documentation "Source Text"
 General
 -------
 
-- Prefer the :ref:`Aralia_format` for the Boolean formula documentation.
+- Prefer the `Aralia format <input_file.rst#aralia-input-format>`__ for the Boolean formula documentation.
   This format uses the C-style bit-wise logical operators for formulas.
 
 

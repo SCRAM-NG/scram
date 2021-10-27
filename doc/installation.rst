@@ -61,6 +61,15 @@ Install from the official Fedora repositories:
     sudo dnf install scram
 
 
+Linux Bundle
+============
+
+The relocatable bundle is packaged with exodus_
+and available on SourceForge_ and Bintray_.
+
+.. _exodus: https://github.com/Intoli/exodus/
+
+
 macOS
 =====
 
@@ -78,9 +87,10 @@ Installation with homebrew_:
 Windows
 =======
 
-Download and run the installer_.
+Download and run the installer from SourceForge_ or Bintray_.
 
-.. _installer: https://sourceforge.net/projects/iscram/files/latest/download
+.. _SourceForge: https://sourceforge.net/projects/iscram/files/
+.. _Bintray: https://bintray.com/rakhimov/scram/scram
 
 
 Docker Containers

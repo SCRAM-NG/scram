@@ -28,8 +28,7 @@
 namespace scram::gui::model {
 
 Element::SetLabel::SetLabel(Element *element, QString label)
-    : Involution(QObject::tr("Set element '%1' label to '%2'")
-                     .arg(element->id(), label)),
+    : Involution(_("Set element '%1' label to '%2'").arg(element->id(), label)),
       m_label(std::move(label)), m_element(element)
 {
 }
@@ -47,20 +46,15 @@ void Element::SetLabel::redo()
 BasicEvent::BasicEvent(mef::BasicEvent *basicEvent)
     : Element(basicEvent), m_flavor(Flavor::Basic)
 {
-    if (basicEvent->HasAttribute("flavor")) {
-        const mef::Attribute &flavor = basicEvent->GetAttribute("flavor");
-        if (flavor.value == "undeveloped") {
+    if (const mef::Attribute *flavor = basicEvent->GetAttribute("flavor")) {
+        if (flavor->value() == "undeveloped")
             m_flavor = Flavor::Undeveloped;
-        } else if (flavor.value == "conditional") {
-            m_flavor = Flavor::Conditional;
-        }
     }
 }
 
 BasicEvent::SetExpression::SetExpression(BasicEvent *basicEvent,
                                          mef::Expression *expression)
-    : Involution(QObject::tr("Modify basic event '%1' expression")
-                     .arg(basicEvent->id())),
+    : Involution(_("Modify basic event '%1' expression").arg(basicEvent->id())),
       m_expression(expression), m_basicEvent(basicEvent)
 {
 }
@@ -78,7 +72,7 @@ void BasicEvent::SetExpression::redo()
 }
 
 BasicEvent::SetFlavor::SetFlavor(BasicEvent *basicEvent, Flavor flavor)
-    : Involution(tr("Set basic event '%1' flavor to '%2'")
+    : Involution(_("Set basic event '%1' flavor to '%2'")
                      .arg(basicEvent->id(), flavorToString(flavor))),
       m_flavor(flavor), m_basicEvent(basicEvent)
 {
@@ -98,9 +92,6 @@ void BasicEvent::SetFlavor::redo()
     case Undeveloped:
         mefEvent->SetAttribute({"flavor", "undeveloped", ""});
         break;
-    case Conditional:
-        mefEvent->SetAttribute({"flavor", "conditional", ""});
-        break;
     }
     m_basicEvent->m_flavor = m_flavor;
     emit m_basicEvent->flavorChanged(m_flavor);
@@ -108,7 +99,7 @@ void BasicEvent::SetFlavor::redo()
 }
 
 HouseEvent::SetState::SetState(HouseEvent *houseEvent, bool state)
-    : Involution(QObject::tr("Set house event '%1' state to '%2'")
+    : Involution(_("Set house event '%1' state to '%2'")
                      .arg(houseEvent->id(), boolToString(state))),
       m_state(state), m_houseEvent(houseEvent)
 {
@@ -124,8 +115,8 @@ void HouseEvent::SetState::redo()
     m_state = prev_state;
 }
 
-Gate::SetFormula::SetFormula(Gate *gate, mef::FormulaPtr formula)
-    : Involution(QObject::tr("Update gate '%1' formula").arg(gate->id())),
+Gate::SetFormula::SetFormula(Gate *gate, std::unique_ptr<mef::Formula> formula)
+    : Involution(_("Update gate '%1' formula").arg(gate->id())),
       m_formula(std::move(formula)), m_gate(gate)
 {
 }
@@ -139,47 +130,39 @@ void Gate::SetFormula::redo()
 namespace {
 
 template <class T, class S>
-void populate(const mef::IdTable<S> &source, ProxyTable<T> *proxyTable)
+void populate(const mef::TableRange<S> &source, ProxyTable<T> *proxyTable)
 {
     proxyTable->reserve(source.size());
-    for (const S &element : source)
-        proxyTable->emplace(std::make_unique<T>(element.get()));
+    for (auto &element : source)
+        proxyTable->emplace(std::make_unique<T>(&element));
 }
 
 } // namespace
 
 Model::Model(mef::Model *model) : Element(model), m_model(model)
 {
-    normalize(model);
-    populate<HouseEvent>(m_model->house_events(), &m_houseEvents);
-    populate<BasicEvent>(m_model->basic_events(), &m_basicEvents);
-    populate<Gate>(m_model->gates(), &m_gates);
+    populate<HouseEvent>(m_model->table<mef::HouseEvent>(), &m_houseEvents);
+    populate<BasicEvent>(m_model->table<mef::BasicEvent>(), &m_basicEvents);
+    populate<Gate>(m_model->table<mef::Gate>(), &m_gates);
 }
 
-void Model::normalize(mef::Model *model)
-{
-    for (const mef::FaultTreePtr &faultTree : model->fault_trees()) {
-        const_cast<mef::ElementTable<mef::BasicEvent *> &>(
-            faultTree->basic_events())
-            .clear();
-        const_cast<mef::ElementTable<mef::HouseEvent *> &>(
-            faultTree->house_events())
-            .clear();
-    }
-}
-
-std::vector<Gate *> Model::parents(mef::Formula::EventArg event) const
+std::vector<Gate *> Model::parents(mef::Formula::ArgEvent event) const
 {
     std::vector<Gate *> result;
     for (const std::unique_ptr<Gate> &gate : m_gates) {
-        if (boost::find(gate->args(), event) != gate->args().end())
+        auto it = boost::find_if(gate->args(),
+                                 [&event](const mef::Formula::Arg &arg) {
+                                     return arg.event == event;
+                                 });
+
+        if (it != gate->args().end())
             result.push_back(gate.get());
     }
     return result;
 }
 
 Model::SetName::SetName(QString name, Model *model)
-    : Involution(QObject::tr("Rename model to '%1'").arg(name)), m_model(model),
+    : Involution(_("Rename model to '%1'").arg(name)), m_model(model),
       m_name(std::move(name))
 {
 }
@@ -195,8 +178,9 @@ void Model::SetName::redo()
     m_name = std::move(currentName);
 }
 
-Model::AddFaultTree::AddFaultTree(mef::FaultTreePtr faultTree, Model *model)
-    : QUndoCommand(QObject::tr("Add fault tree '%1'")
+Model::AddFaultTree::AddFaultTree(std::unique_ptr<mef::FaultTree> faultTree,
+                                  Model *model)
+    : QUndoCommand(_("Add fault tree '%1'")
                        .arg(QString::fromStdString(faultTree->name()))),
       m_model(model), m_address(faultTree.get()),
       m_faultTree(std::move(faultTree))
@@ -217,7 +201,7 @@ void Model::AddFaultTree::undo()
 
 Model::RemoveFaultTree::RemoveFaultTree(mef::FaultTree *faultTree, Model *model)
     : Inverse<AddFaultTree>(faultTree, model,
-                            QObject::tr("Remove fault tree '%1'")
+                            _("Remove fault tree '%1'")
                                 .arg(QString::fromStdString(faultTree->name())))
 {
 }

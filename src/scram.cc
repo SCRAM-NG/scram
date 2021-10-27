@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2017 Olzhas Rakhimov
+ * Copyright (C) 2014-2018 Olzhas Rakhimov
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,16 +30,17 @@
 #include <boost/core/typeinfo.hpp>
 #include <boost/exception/all.hpp>
 #include <boost/program_options.hpp>
+#include <boost/version.hpp>
 
 #include <libxml/parser.h>  // xmlInitParser, xmlCleanupParser
 #include <libxml/xmlerror.h>  // initGenericErrorDefaultFunc
-#include <libxml/xmlversion.h>  // LIBXML_TEST_VERSION
+#include <libxml/xmlversion.h>  // LIBXML_TEST_VERSION, LIBXML_DOTTED_VERSION
 
-#include "config.h"
 #include "error.h"
 #include "ext/scope_guard.h"
 #include "initializer.h"
 #include "logger.h"
+#include "project.h"
 #include "reporter.h"
 #include "risk_analysis.h"
 #include "serialization.h"
@@ -62,18 +63,18 @@ po::options_description ConstructOptions() {
   desc.add_options()
       ("help", "Display this help message")
       ("version", "Display version information")
-      ("config-file", OPT_VALUE(path), "XML file with analysis configurations")
+      ("project", OPT_VALUE(path), "Project file with analysis configurations")
       ("allow-extern", "**UNSAFE** Allow external libraries")
       ("validate", "Validate input files without analysis")
       ("bdd", "Perform qualitative analysis with BDD")
       ("zbdd", "Perform qualitative analysis with ZBDD")
       ("mocus", "Perform qualitative analysis with MOCUS")
       ("prime-implicants", "Calculate prime implicants")
-      ("probability", OPT_VALUE(bool), "Perform probability analysis")
-      ("importance", OPT_VALUE(bool), "Perform importance analysis")
-      ("uncertainty", OPT_VALUE(bool), "Perform uncertainty analysis")
-      ("ccf", OPT_VALUE(bool), "Perform common-cause failure analysis")
-      ("sil", OPT_VALUE(bool), "Compute the Safety Integrity Level metrics")
+      ("probability", "Perform probability analysis")
+      ("importance", "Perform importance analysis")
+      ("uncertainty", "Perform uncertainty analysis")
+      ("ccf", "Perform common-cause failure analysis")
+      ("sil", "Compute the Safety Integrity Level metrics")
       ("rare-event", "Use the rare event approximation")
       ("mcub", "Use the MCUB approximation")
       ("limit-order,l", OPT_VALUE(int), "Upper limit for the product order")
@@ -87,7 +88,7 @@ po::options_description ConstructOptions() {
        "Number of quantiles for distributions")
       ("num-bins", OPT_VALUE(int), "Number of bins for histograms")
       ("seed", OPT_VALUE(int), "Seed for the pseudo-random number generator")
-      ("output-path,o", OPT_VALUE(path), "Output path for reports")
+      ("output,o", OPT_VALUE(path), "Output file for reports")
       ("no-indent", "Omit indentation whitespace in output XML")
       ("verbosity", OPT_VALUE(int), "Set log verbosity");
 #ifndef NDEBUG
@@ -127,7 +128,7 @@ int ParseArguments(int argc, char* argv[], po::variables_map* vm) {
   po::options_description options("All options with positional input files.");
   options.add(desc).add_options()("input-files",
                                   po::value<std::vector<std::string>>(),
-                                  "XML input files with analysis constructs");
+                                  "MEF input files with analysis constructs");
   po::positional_options_description p;
   p.add("input-files", -1);  // All input files are implicit.
   po::store(
@@ -145,11 +146,10 @@ int ParseArguments(int argc, char* argv[], po::variables_map* vm) {
     return -1;
   }
   if (vm->count("version")) {
-    std::cout << "SCRAM " << scram::version::core() << " ("
-              << scram::version::describe() << ")"
+    std::cout << "SCRAM " << SCRAM_VERSION << " (" << SCRAM_GIT_REVISION << ")"
               << "\n\nDependencies:\n"
-              << "   Boost       " << scram::version::boost() << "\n"
-              << "   libxml2     " << scram::version::libxml() << std::endl;
+              << "   Boost       " << BOOST_LIB_VERSION << "\n"
+              << "   libxml2     " << LIBXML_DOTTED_VERSION << std::endl;
     return -1;
   }
 
@@ -163,7 +163,7 @@ int ParseArguments(int argc, char* argv[], po::variables_map* vm) {
     }
   }
 
-  if (!vm->count("input-files") && !vm->count("config-file")) {
+  if (!vm->count("input-files") && !vm->count("project")) {
     std::cerr << "No input or configuration file is given.\n\n";
     print_help(std::cerr);
     return 1;
@@ -202,27 +202,27 @@ int ParseArguments(int argc, char* argv[], po::variables_map* vm) {
 void ConstructSettings(const po::variables_map& vm,
                        scram::core::Settings* settings) {
   if (vm.count("bdd")) {
-    settings->algorithm("bdd");
+    settings->algorithm(scram::core::Algorithm::kBdd);
   } else if (vm.count("zbdd")) {
-    settings->algorithm("zbdd");
+    settings->algorithm(scram::core::Algorithm::kZbdd);
   } else if (vm.count("mocus")) {
-    settings->algorithm("mocus");
+    settings->algorithm(scram::core::Algorithm::kMocus);
   }
   settings->prime_implicants(vm.count("prime-implicants"));
   // Determine if the probability approximation is requested.
   if (vm.count("rare-event")) {
     assert(!vm.count("mcub"));
-    settings->approximation("rare-event");
+    settings->approximation(scram::core::Approximation::kRareEvent);
   } else if (vm.count("mcub")) {
-    settings->approximation("mcub");
+    settings->approximation(scram::core::Approximation::kMcub);
   }
   SET("time-step", double, time_step);
-  SET("sil", bool, safety_integrity_levels);
+  settings->safety_integrity_levels(vm.count("sil"));
 
-  SET("probability", bool, probability_analysis);
-  SET("importance", bool, importance_analysis);
-  SET("uncertainty", bool, uncertainty_analysis);
-  SET("ccf", bool, ccf_analysis);
+  settings->probability_analysis(vm.count("probability"));
+  settings->importance_analysis(vm.count("importance"));
+  settings->uncertainty_analysis(vm.count("uncertainty"));
+  settings->ccf_analysis(vm.count("ccf"));
   SET("seed", int, seed);
   SET("limit-order", int, limit_order);
   SET("cut-off", double, cut_off);
@@ -247,15 +247,12 @@ void ConstructSettings(const po::variables_map& vm,
 void RunScram(const po::variables_map& vm) {
   scram::core::Settings settings;  // Analysis settings.
   std::vector<std::string> input_files;
-  std::string output_path;
   // Get configurations if any.
   // Invalid configurations will throw.
-  if (vm.count("config-file")) {
-    auto config =
-        std::make_unique<scram::Config>(vm["config-file"].as<std::string>());
-    settings = config->settings();
-    input_files = config->input_files();
-    output_path = config->output_path();
+  if (vm.count("project")) {
+    scram::Project config(vm["project"].as<std::string>());
+    settings = config.settings();
+    input_files = config.input_files();
   }
   // Command-line settings overwrite
   // the settings from the configurations.
@@ -264,13 +261,10 @@ void RunScram(const po::variables_map& vm) {
     auto cmd_input = vm["input-files"].as<std::vector<std::string>>();
     input_files.insert(input_files.end(), cmd_input.begin(), cmd_input.end());
   }
-  if (vm.count("output-path")) {
-    output_path = vm["output-path"].as<std::string>();
-  }
   // Process input files
   // into valid analysis containers and constructs.
   // Throws if anything is invalid.
-  std::shared_ptr<scram::mef::Model> model =
+  std::unique_ptr<scram::mef::Model> model =
       scram::mef::Initializer(input_files, settings, vm.count("allow-extern"))
           .model();
 #ifndef NDEBUG
@@ -289,10 +283,10 @@ void RunScram(const po::variables_map& vm) {
 #endif
   scram::Reporter reporter;
   bool indent = vm.count("no-indent") ? false : true;
-  if (output_path.empty()) {
-    reporter.Report(analysis, stdout, indent);
+  if (vm.count("output")) {
+    reporter.Report(analysis, vm["output"].as<std::string>(), indent);
   } else {
-    reporter.Report(analysis, output_path, indent);
+    reporter.Report(analysis, stdout, indent);
   }
 }
 
@@ -303,7 +297,7 @@ void RunScram(const po::variables_map& vm) {
 /// @param[in] ...  The variadic arguments for the format string.
 ///
 /// @pre The library strictly follows validity conditions of printf.
-void LogXmlError(void* /*ctx*/, const char* msg, ...) noexcept {
+extern "C" void LogXmlError(void* /*ctx*/, const char* msg, ...) noexcept {
   std::va_list args;
   va_start(args, msg);
   SCOPE_EXIT([&args] { va_end(args); });
@@ -320,6 +314,18 @@ void LogXmlError(void* /*ctx*/, const char* msg, ...) noexcept {
   std::vector<char> buffer(nchar + /*null terminator*/ 1);
   std::vsnprintf(buffer.data(), buffer.size(), msg, args);
   LOG(scram::WARNING) << buffer.data();
+}
+
+/// Prints error information into the standard error.
+///
+/// @tparam Tag  The error info tag to retrieve the error value.
+///
+/// @param[in] tag_string  The string for the tag type.
+/// @param[in] err  The error.
+template <class Tag>
+void PrintErrorInfo(const char* tag_string, const scram::Error& err) {
+  if (const auto* value = boost::get_error_info<Tag>(err))
+    std::cerr << tag_string << ": " << *value << "\n";
 }
 
 }  // namespace
@@ -359,15 +365,8 @@ int main(int argc, char* argv[]) {
   } catch (const scram::IOError& err) {
     LOG(scram::DEBUG1) << boost::diagnostic_information(err);
     std::cerr << boost::core::demangled_name(typeid(err)) << "\n\n";
-    const std::string* filename =
-        boost::get_error_info<boost::errinfo_file_name>(err);
-    assert(filename);
-    std::cerr << "File: " << *filename << "\n";
-    if (const std::string* mode =
-            boost::get_error_info<boost::errinfo_file_open_mode>(err)) {
-      std::cerr << "Open mode: " << *mode << "\n";
-    }
-
+    PrintErrorInfo<boost::errinfo_file_name>("File", err);
+    PrintErrorInfo<boost::errinfo_file_open_mode>("Open mode", err);
     if (const int* errnum = boost::get_error_info<boost::errinfo_errno>(err)) {
       std::cerr << "Error code: " << *errnum << "\n";
       std::cerr << "Error string: " << std::strerror(*errnum) << "\n";
@@ -375,26 +374,23 @@ int main(int argc, char* argv[]) {
     std::cerr << "\n" << err.what() << std::endl;
     return 1;
   } catch (const scram::Error& err) {
-    LOG(scram::DEBUG1) << boost::diagnostic_information(err);
+    using namespace scram;  // NOLINT
+    LOG(DEBUG1) << boost::diagnostic_information(err);
     std::cerr << boost::core::demangled_name(typeid(err)) << "\n\n";
-    if (const std::string* filename =
-            boost::get_error_info<boost::errinfo_file_name>(err)) {
-      std::cerr << "File: " << *filename << "\n";
-      if (const int* line = boost::get_error_info<boost::errinfo_at_line>(err))
-        std::cerr << "Line: " << *line << "\n";
-    }
-    if (const std::string* container =
-            boost::get_error_info<scram::mef::errinfo_container>(err)) {
-      std::cerr << "MEF Container: " << *container << "\n";
-    }
-    if (const std::string* xml_element =
-            boost::get_error_info<scram::xml::errinfo_element>(err)) {
-      std::cerr << "XML element: " << *xml_element << "\n";
-    }
-    if (const std::string* xml_attribute =
-            boost::get_error_info<scram::xml::errinfo_attribute>(err)) {
-      std::cerr << "XML attribute: " << *xml_attribute << "\n";
-    }
+    PrintErrorInfo<errinfo_value>("Value", err);
+    PrintErrorInfo<boost::errinfo_file_name>("File", err);
+    PrintErrorInfo<boost::errinfo_at_line>("Line", err);
+    PrintErrorInfo<mef::errinfo_connective>("MEF Connective", err);
+    PrintErrorInfo<mef::errinfo_reference>("MEF reference", err);
+    PrintErrorInfo<mef::errinfo_base_path>("MEF base path", err);
+    PrintErrorInfo<mef::errinfo_element_id>("MEF Element ID", err);
+    PrintErrorInfo<mef::errinfo_element_type>("MEF Element type", err);
+    PrintErrorInfo<mef::errinfo_container_id>("MEF Container", err);
+    PrintErrorInfo<mef::errinfo_container_type>("MEF Container type", err);
+    PrintErrorInfo<mef::errinfo_attribute>("MEF Attribute", err);
+    PrintErrorInfo<mef::errinfo_cycle>("Cycle", err);
+    PrintErrorInfo<xml::errinfo_element>("XML element", err);
+    PrintErrorInfo<xml::errinfo_attribute>("XML attribute", err);
     std::cerr << "\n" << err.what() << std::endl;
     return 1;
   } catch (const boost::exception& boost_err) {
@@ -403,7 +399,7 @@ int main(int argc, char* argv[]) {
     return 1;
   } catch (const std::exception& err) {
     LOG(scram::ERROR) << "Unexpected Exception: "
-                      << boost::core::demangled_name(typeid(err)) << ": "
+                      << boost::core::demangled_name(typeid(err)) << ":\n"
                       << err.what();
     return 1;
   }

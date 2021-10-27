@@ -7,7 +7,7 @@ The Open-PSA MEF
 ****************
 
 The results of calculations are reported in the XML format
-suggested by the Open-PSA Model Exchange Format ([MEF]_).
+suggested by the Open-PSA Model Exchange Format (`[MEF] <references.rst#standards-guides-manuals-handbooks>`__).
 SCRAM-specific extra report XML elements and attributes are added
 on top of the MEF report format in a compatible way.
 It is expected that the standardized report format be used by other tools

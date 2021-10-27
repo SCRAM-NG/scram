@@ -1,3 +1,5 @@
+# vim: set foldmarker={{{,}}} foldlevel=0 foldmethod=marker:
+######################## Begin find Qt ###################### {{{
 # Find Qt5 libraries.
 if(APPLE)
   # Qt5 with Homebrew.
@@ -8,16 +10,21 @@ find_package(Qt5 "5.9.1" REQUIRED COMPONENTS
   )
 message(STATUS "Found Qt5")
 message(STATUS "Qt5 Version: ${Qt5_VERSION}")
+######################## End find Qt ###################### }}}
 
+##################### Begin cmake configuration ################### {{{
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
+include_directories("${CMAKE_BINARY_DIR}")  # Access the generated core version header.
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
+##################### End cmake configuration ################### }}}
 
+##################### Begin resource configuration ################### {{{
 set(SCRAM_GUI_RES res.qrc)
 
-if(NOT HAS_TANGO AND (WIN32 OR APPLE))
+if(WIN32 OR APPLE)
   set(TANGO_QRC qtango/icons/tango/tango.qrc)
   execute_process(
     COMMAND python generate_rcc.py icons/tango/index.theme
@@ -32,8 +39,40 @@ if(NOT HAS_TANGO AND (WIN32 OR APPLE))
   list(APPEND SCRAM_GUI_RES "${TANGO_QRC}")
 endif()
 
-add_subdirectory(translations)
+if(UNIX AND NOT APPLE)
+  foreach(size IN ITEMS 32 64 128)
+    install(
+      FILES       images/scram${size}x${size}.png
+      DESTINATION share/icons/hicolor/${size}x${size}/apps
+      COMPONENT   gui
+      RENAME      scram.png)
+  endforeach()
 
+  install(
+    FILES       images/scram_motif.svg
+    DESTINATION share/icons/hicolor/scalable/apps
+    COMPONENT   gui
+    RENAME      scram.svg)
+
+  # Install a desktop file
+  # so that SCRAM appears in the application start menu with an icon.
+  install(
+    FILES       scram-gui.desktop
+    DESTINATION share/applications
+    COMPONENT   gui)
+  # Install appdata for software center.
+  install(
+    FILES       scram-gui.appdata.xml
+    DESTINATION share/metainfo
+    COMPONENT   gui
+    )
+endif()
+
+add_subdirectory(translations)
+##################### End resource configuration ################### }}}
+
+####################### Begin SCRAM GUI lib config ##################### {{{
+### Begin SCRAM GUI source list ### {{{
 set(SCRAM_GUI_SRC
   language.cpp
   validator.cpp
@@ -48,9 +87,11 @@ set(SCRAM_GUI_SRC
   eventdialog.cpp
   printable.cpp
   zoomableview.cpp
+  diagramview.cpp
   diagram.cpp
   mainwindow.cpp
   )
+### End SCRAM GUI source list ### }}}
 add_library(scram-gui STATIC ${SCRAM_GUI_SRC})
 target_link_libraries(scram-gui
   ${LIBS} scram
@@ -60,7 +101,9 @@ target_compile_options(scram-gui PUBLIC $<$<CONFIG:DEBUG>:${SCRAM_CXX_FLAGS_DEBU
 target_compile_definitions(scram-gui PRIVATE
   $<$<CONFIG:DEBUG>:QT_NO_CAST_FROM_ASCII QT_NO_CAST_TO_ASCII QT_NO_CAST_FROM_BYTEARRAY QT_NO_URL_CAST_FROM_STRING QT_USE_QSTRINGBUILDER>
   )
+####################### End SCRAM GUI lib config ##################### }}}
 
+####################### Begin SCRAM GUI bin config ##################### {{{
 add_executable(scram-gui-bin WIN32 main.cpp scram.rc ${SCRAM_GUI_RES})
 set_target_properties(scram-gui-bin PROPERTIES OUTPUT_NAME scram-gui)
 target_link_libraries(scram-gui-bin scram-gui scram ${Boost_LIBRARIES})
@@ -69,30 +112,9 @@ install(
   RUNTIME DESTINATION bin
   COMPONENT gui
   )
+####################### End SCRAM GUI bin config ##################### }}}
 
-if(UNIX AND NOT APPLE)
-  foreach(size IN ITEMS 32 128)
-    install(
-      FILES       images/scram_solid${size}x${size}.png
-      DESTINATION share/icons/hicolor/${size}x${size}/apps
-      COMPONENT   gui
-      RENAME      scram.png)
-  endforeach()
-
-  install(
-    FILES       images/scram_solid.svg
-    DESTINATION share/icons/hicolor/scalable/apps
-    COMPONENT   gui
-    RENAME      scram.svg)
-
-  # Install a desktop file
-  # so that SCRAM appears in the application start menu with an icon.
-  install(
-    FILES       scram-gui.desktop
-    DESTINATION share/applications
-    COMPONENT   gui)
-endif()
-
+###################### Begin CPACK configurations ########################### {{{
 if(PACKAGE)
   if(WIN32)
     # Helper functions to bundle the dependencies.
@@ -137,6 +159,7 @@ if(PACKAGE)
       COMPONENT gui)
   endif()
 endif()
+###################### End CPACK configurations ############################# }}}
 
 if(BUILD_TESTING)
   add_subdirectory(tests)

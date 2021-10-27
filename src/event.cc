@@ -20,6 +20,8 @@
 
 #include "event.h"
 
+#include <limits>
+
 #include <boost/range/algorithm.hpp>
 
 #include "error.h"
@@ -39,103 +41,197 @@ HouseEvent HouseEvent::kFalse("__false__");
 
 void BasicEvent::Validate() const {
   assert(expression_ && "The basic event's expression is not set.");
-  EnsureProbability(expression_, Event::name());
-}
-
-void Gate::Validate() const {
-  assert(formula_ && "The gate formula is missing.");
-  // Detect inhibit flavor.
-  if (formula_->type() != kAnd || !Element::HasAttribute("flavor") ||
-      Element::GetAttribute("flavor").value != "inhibit") {
-    return;
+  try {
+    EnsureProbability(expression_);
+  } catch (DomainError& err) {
+    err << errinfo_element(Event::name(), kTypeString);
+    throw;
   }
-  if (formula_->num_args() != 2) {
-    SCRAM_THROW(ValidityError(Element::name() +
-                              "INHIBIT gate must have only 2 children"));
-  }
-  int num_conditional = boost::count_if(
-      formula_->event_args(), [](const Formula::EventArg& event) {
-        if (BasicEvent* const* basic_event = std::get_if<BasicEvent*>(&event)) {
-          return (*basic_event)->HasAttribute("flavor") &&
-                 (*basic_event)->GetAttribute("flavor").value == "conditional";
-        }
-
-        return false;
-      });
-  if (num_conditional != 1)
-    SCRAM_THROW(ValidityError(Element::name() + " : INHIBIT gate must have" +
-                              " exactly one conditional event."));
 }
 
-Formula::Formula(Operator type) : type_(type), vote_number_(0) {}
-
-int Formula::vote_number() const {
-  if (!vote_number_)
-    SCRAM_THROW(LogicError("Vote number is not set."));
-  return vote_number_;
-}
-
-void Formula::vote_number(int number) {
-  if (type_ != kVote) {
-    SCRAM_THROW(LogicError(
-        "The vote number can only be defined for 'atleast' formulas. "
-        "The operator of this formula is '" +
-        std::string(kOperatorToString[type_]) + "'."));
-  }
-  if (number < 2)
-    SCRAM_THROW(ValidityError("Vote number cannot be less than 2."));
-  if (vote_number_)
-    SCRAM_THROW(LogicError("Trying to re-assign a vote number"));
-
-  vote_number_ = number;
-}
-
-void Formula::AddArgument(EventArg event_arg) {
-  Event* event = ext::as<Event*>(event_arg);
-  if (ext::any_of(event_args_, [&event](const EventArg& arg) {
-        return ext::as<Event*>(arg)->id() == event->id();
+void Formula::ArgSet::Add(ArgEvent event, bool complement) {
+  Event* base = ext::as<Event*>(event);
+  if (ext::any_of(args_, [&base](const Arg& arg) {
+        return ext::as<Event*>(arg.event)->id() == base->id();
       })) {
-    SCRAM_THROW(DuplicateArgumentError("Duplicate argument " + event->name()));
+    SCRAM_THROW(DuplicateElementError())
+        << errinfo_element(base->id(), "event");
   }
-  event_args_.push_back(event_arg);
-  if (!event->usage())
-    event->usage(true);
+  args_.push_back({complement, event});
+  if (!base->usage())
+    base->usage(true);
 }
 
-void Formula::RemoveArgument(EventArg event_arg) {
-  auto it = boost::find(event_args_, event_arg);
-  if (it == event_args_.end())
-    SCRAM_THROW(LogicError("The argument doesn't belong to this formula."));
-  event_args_.erase(it);
+void Formula::ArgSet::Remove(ArgEvent event) {
+  auto it = boost::find_if(
+      args_, [&event](const Arg& arg) { return arg.event == event; });
+  if (it == args_.end())
+    SCRAM_THROW(LogicError("The event is not in the argument set."));
+  args_.erase(it);
 }
 
-void Formula::Validate() const {
-  switch (type_) {
+Formula::Formula(Connective connective, ArgSet args,
+                 std::optional<int> min_number, std::optional<int> max_number)
+    : connective_(connective),
+      min_number_(min_number.value_or(0)),
+      max_number_(max_number.value_or(0)),
+      args_(std::move(args)) {
+  ValidateMinMaxNumber(min_number, max_number);
+
+  try {
+    ValidateConnective(min_number, max_number);
+  } catch (ValidityError& err) {
+    err << errinfo_connective(kConnectiveToString[connective_]);
+    throw;
+  }
+
+  for (const Arg& arg : args_.data())
+    ValidateNesting(arg);
+}
+
+std::optional<int> Formula::min_number() const {
+  if (connective_ == kAtleast || connective_ == kCardinality)
+    return min_number_;
+  return {};
+}
+
+std::optional<int> Formula::max_number() const {
+  if (connective_ == kCardinality)
+    return max_number_;
+  return {};
+}
+
+void Formula::Swap(ArgEvent current, ArgEvent other) {
+  auto it = boost::find_if(args_.data(), [&current](const Arg& arg) {
+    return arg.event == current;
+  });
+  if (it == args_.data().end())
+    SCRAM_THROW(LogicError("The current event is not in the formula."));
+
+  Event* base = ext::as<Event*>(other);
+  if (ext::any_of(args_.data(), [&current, &base](const Arg& arg) {
+        return arg.event != current &&
+               ext::as<Event*>(arg.event)->id() == base->id();
+      })) {
+    SCRAM_THROW(DuplicateElementError())
+        << errinfo_element(base->id(), "event");
+  }
+
+  ValidateNesting({it->complement, other});
+
+  if (!base->usage())
+    base->usage(true);
+
+  ext::swap(it->event, other);
+}
+
+void Formula::ValidateMinMaxNumber(std::optional<int> min_number,
+                                   std::optional<int> max_number) {
+  assert(!min_number ||
+         std::numeric_limits<decltype(min_number_)>::max() >= *min_number);
+  assert(!max_number ||
+         std::numeric_limits<decltype(max_number_)>::max() >= *max_number);
+
+  if (min_number) {
+    if (*min_number < 0)
+      SCRAM_THROW(LogicError("The min number cannot be negative."))
+          << errinfo_value(std::to_string(*min_number));
+
+    if (connective_ != kAtleast && connective_ != kCardinality) {
+      SCRAM_THROW(
+          LogicError("The min number can only be defined for 'atleast' "
+                     "or 'cardinality' connective."))
+          << errinfo_connective(kConnectiveToString[connective_]);
+    }
+  }
+
+  if (max_number) {
+    if (*max_number < 0)
+      SCRAM_THROW(LogicError("The max number cannot be negative."))
+          << errinfo_value(std::to_string(*max_number));
+
+    if (connective_ != kCardinality) {
+      SCRAM_THROW(LogicError(
+          "The max number can only be defined for 'cardinality' connective."))
+          << errinfo_connective(kConnectiveToString[connective_]);
+    }
+
+    if (min_number && *min_number > *max_number)
+      SCRAM_THROW(ValidityError(
+          "The connective min number cannot be greater than max number."))
+          << errinfo_value(std::to_string(*min_number) + " > " +
+                           std::to_string(*max_number));
+  }
+}
+
+void Formula::ValidateConnective(std::optional<int> min_number,
+                                 std::optional<int> max_number) {
+  switch (connective_) {
     case kAnd:
     case kOr:
     case kNand:
     case kNor:
-      if (num_args() < 2)
-        SCRAM_THROW(ValidityError("\"" + std::string(kOperatorToString[type_]) +
-                                  "\" formula must have 2 or more arguments."));
+      if (args_.size() < 2)
+        SCRAM_THROW(
+            ValidityError("The connective must have 2 or more arguments."));
       break;
     case kNot:
     case kNull:
-      if (num_args() != 1)
-        SCRAM_THROW(ValidityError("\"" + std::string(kOperatorToString[type_]) +
-                                  "\" formula must have only one argument."));
+      if (args_.size() != 1)
+        SCRAM_THROW(
+            ValidityError("The connective must have only one argument."));
       break;
     case kXor:
-      if (num_args() != 2)
+    case kIff:
+    case kImply:
+      if (args_.size() != 2)
         SCRAM_THROW(
-            ValidityError("\"xor\" formula must have exactly 2 arguments."));
+            ValidityError("The connective must have exactly 2 arguments."));
       break;
-    case kVote:
-      if (num_args() <= vote_number_)
+    case kAtleast:
+      if (!min_number)
         SCRAM_THROW(
-            ValidityError("\"atleast\" formula must have more arguments "
-                          "than its vote number " +
-                          std::to_string(vote_number_) + "."));
+            ValidityError("The connective requires min number for its args."));
+
+      if (min_number_ < 2)
+        SCRAM_THROW(ValidityError("Min number cannot be less than 2."))
+            << errinfo_value(std::to_string(min_number_));
+
+      if (args_.size() <= min_number_) {
+        SCRAM_THROW(
+            ValidityError("The connective must have more arguments "
+                          "than its min number."))
+            << errinfo_value(std::to_string(args_.size()) +
+                             " <= " + std::to_string(min_number_));
+      }
+      break;
+    case kCardinality:
+      if (!min_number || !max_number)
+        SCRAM_THROW(ValidityError(
+            "The connective requires min and max numbers for args."));
+      if (args_.empty())
+        SCRAM_THROW(
+            ValidityError("The connective requires one or more arguments."));
+
+      if (args_.size() < max_number_)
+        SCRAM_THROW(
+            ValidityError("The connective max number cannot be greater than "
+                          "the number of arguments."))
+            << errinfo_value(std::to_string(max_number_) + " > " +
+                             std::to_string(args_.size()));
+  }
+}
+
+void Formula::ValidateNesting(const Arg& arg) {
+  if (arg.complement) {
+    if (connective_ == kNull || connective_ == kNot)
+      SCRAM_THROW(LogicError("Invalid nesting of a complement arg."));
+  }
+  if (connective_ == kNot) {
+    if (arg.event == ArgEvent(&HouseEvent::kTrue) ||
+        arg.event == ArgEvent(&HouseEvent::kFalse)) {
+      SCRAM_THROW(LogicError("Invalid nesting of a constant arg."));
+    }
   }
 }
 

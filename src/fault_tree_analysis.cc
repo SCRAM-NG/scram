@@ -21,7 +21,7 @@
 #include "fault_tree_analysis.h"
 
 #include <iostream>
-#include <string>
+#include <utility>
 
 #include <boost/container/flat_set.hpp>
 #include <boost/range/algorithm.hpp>
@@ -42,16 +42,25 @@ void Print(const ProductContainer& products) {
     return;
   }
   std::cerr << " " << products.size() << " : {";
-  for (int i : products.Distribution())
+  for (int i : products.distribution())
     std::cerr << " " << i;
   std::cerr << " }\n\n";
 
-  using ProductSet = boost::container::flat_set<std::string>;
+  using LiteralPtr = std::pair<bool, const mef::BasicEvent*>;
+  struct Comparator {
+    bool operator()(const LiteralPtr& lhs, const LiteralPtr& rhs) const {
+      return lhs.second->id() < rhs.second->id();
+    }
+  };
+
+  using ProductSet = boost::container::flat_set<LiteralPtr, Comparator>;
   std::vector<ProductSet> to_print;
+  to_print.reserve(products.size());
   for (const Product& product : products) {
     ProductSet ids;
+    ids.reserve(product.size());
     for (const Literal& literal : product) {
-      ids.insert((literal.complement ? "~" : "") + literal.event.name());
+      ids.emplace(literal.complement, &literal.event);
     }
     to_print.push_back(std::move(ids));
   }
@@ -63,11 +72,36 @@ void Print(const ProductContainer& products) {
   assert(!to_print.front().empty() && "Failure of the analysis with Unity!");
 
   for (const auto& product : to_print) {
-    for (const auto& id : product)
-      std::cerr << " " << id;
+    for (const auto& [complement, event] : product) {
+      std::cerr << " ";
+      if (complement)
+        std::cerr << "~";
+      std::cerr << event->id();
+    }
     std::cerr << "\n";
   }
-  std::cerr << std::flush;
+  std::cerr << std::endl;
+}
+
+ProductContainer::ProductContainer(const Zbdd& products,
+                                   const Pdag& graph) noexcept
+    : products_(products), graph_(graph), size_(0) {
+  Pdag::IndexMap<bool> filter(graph_.basic_events().size());
+  for (const std::vector<int>& product : products_) {
+    int order_index = product.empty() ? 0 : product.size() - 1;
+    if (distribution_.size() <= order_index)
+      distribution_.resize(order_index + 1);
+    distribution_[order_index]++;
+    ++size_;
+
+    for (int i : product) {
+      i = std::abs(i);
+      if (filter[i])
+        continue;
+      filter[i] = true;
+      product_events_.insert(graph_.basic_events()[i]);
+    }
+  }
 }
 
 double Product::p() const {
@@ -76,17 +110,6 @@ double Product::p() const {
     p *= literal.complement ? 1 - literal.event.p() : literal.event.p();
   }
   return p;
-}
-
-std::vector<int> ProductContainer::Distribution() const {
-  std::vector<int> distribution;
-  for (const std::vector<int>& product : products_) {
-    int index = product.empty() ? 0 : product.size() - 1;
-    if (distribution.size() <= index)
-      distribution.resize(index + 1);
-    distribution[index]++;
-  }
-  return distribution;
 }
 
 FaultTreeAnalysis::FaultTreeAnalysis(const mef::Gate& root,

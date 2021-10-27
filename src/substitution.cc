@@ -29,39 +29,47 @@ void Substitution::Add(BasicEvent* source_event) {
   if (ext::any_of(source_, [source_event](BasicEvent* arg) {
         return arg->id() == source_event->id();
       })) {
-    SCRAM_THROW(DuplicateArgumentError("Duplicate source event: " +
-                                       source_event->id()));
+    SCRAM_THROW(DuplicateElementError())
+        << errinfo_element(source_event->id(), "source event");
   }
   source_.push_back(source_event);
 }
 
 void Substitution::Validate() const {
   assert(hypothesis_ && "Missing substitution hypothesis.");
-  if (ext::any_of(hypothesis_->event_args(), [](const Formula::EventArg& arg) {
-        return !std::holds_alternative<BasicEvent*>(arg);
+  if (ext::any_of(hypothesis_->args(), [](const Formula::Arg& arg) {
+        return !std::holds_alternative<BasicEvent*>(arg.event);
       })) {
     SCRAM_THROW(ValidityError(
-        "Substitution hypothesis must be built over basic events only."));
+        "Substitution hypothesis must be built over basic events only."))
+        << errinfo_element(Element::name(), kTypeString);
   }
-  if (hypothesis_->formula_args().empty() == false) {
-    SCRAM_THROW(
-        ValidityError("Substitution hypothesis formula cannot be nested."));
+
+  if (ext::any_of(hypothesis_->args(),
+                  [](const Formula::Arg& arg) { return arg.complement; })) {
+    SCRAM_THROW(ValidityError("Substitution hypotheses must be coherent."))
+        << errinfo_element(Element::name(), kTypeString);
   }
+
   if (declarative()) {
-    switch (hypothesis_->type()) {
+    switch (hypothesis_->connective()) {
       case kNull:
       case kAnd:
-      case kVote:
+      case kAtleast:
       case kOr:
         break;
       default:
-        SCRAM_THROW(ValidityError("Substitution hypotheses must be coherent."));
+        SCRAM_THROW(ValidityError("Substitution hypotheses must be coherent."))
+            << errinfo_element(Element::name(), kTypeString)
+            << errinfo_connective(
+                   kConnectiveToString[hypothesis_->connective()]);
     }
     const bool* constant = std::get_if<bool>(&target_);
     if (constant && *constant)
-      SCRAM_THROW(ValidityError("Substitution has no effect."));
+      SCRAM_THROW(ValidityError("Substitution has no effect."))
+          << errinfo_element(Element::name(), kTypeString);
   } else {  // Non-declarative.
-    switch (hypothesis_->type()) {
+    switch (hypothesis_->connective()) {
       case kNull:
       case kAnd:
       case kOr:
@@ -69,28 +77,32 @@ void Substitution::Validate() const {
       default:
         SCRAM_THROW(
             ValidityError("Non-declarative substitution hypotheses only allow "
-                          "AND/OR/NULL connectives."));
+                          "AND/OR/NULL connectives."))
+            << errinfo_element(Element::name(), kTypeString)
+            << errinfo_connective(
+                   kConnectiveToString[hypothesis_->connective()]);
     }
     const bool* constant = std::get_if<bool>(&target_);
     if (constant && !*constant)
-      SCRAM_THROW(ValidityError("Substitution source set is irrelevant."));
+      SCRAM_THROW(ValidityError("Substitution source set is irrelevant."))
+          << errinfo_element(Element::name(), kTypeString);
   }
 }
 
 std::optional<Substitution::Type> Substitution::type() const {
   auto in_hypothesis = [this](const BasicEvent* source_arg) {
-    return ext::any_of(hypothesis_->event_args(),
-                       [source_arg](const Formula::EventArg& arg) {
-                         return std::get<BasicEvent*>(arg) == source_arg;
+    return ext::any_of(hypothesis_->args(),
+                       [source_arg](const Formula::Arg& arg) {
+                         return std::get<BasicEvent*>(arg.event) == source_arg;
                        });
   };
 
   auto is_mutually_exclusive = [](const Formula& formula) {
-    switch (formula.type()) {
-      case kVote:
-        return formula.vote_number() == 2;
+    switch (formula.connective()) {
+      case kAtleast:
+        return formula.min_number() == 2;
       case kAnd:
-        return formula.event_args().size() == 2;
+        return formula.args().size() == 2;
       default:
         return false;
     }
@@ -102,17 +114,17 @@ std::optional<Substitution::Type> Substitution::type() const {
       if (is_mutually_exclusive(*hypothesis_))
         return kDeleteTerms;
     } else if (std::holds_alternative<BasicEvent*>(target_)) {
-      if (hypothesis_->type() == kAnd)
+      if (hypothesis_->connective() == kAnd)
         return kRecoveryRule;
     }
     return {};
   }
   if (!std::holds_alternative<BasicEvent*>(target_))
     return {};
-  if (hypothesis_->type() != kAnd && hypothesis_->type() != kNull)
+  if (hypothesis_->connective() != kAnd && hypothesis_->connective() != kNull)
     return {};
 
-  if (source_.size() == hypothesis_->event_args().size()) {
+  if (source_.size() == hypothesis_->args().size()) {
     if (ext::all_of(source_, in_hypothesis))
       return kRecoveryRule;
   } else if (source_.size() == 1) {

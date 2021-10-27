@@ -6,7 +6,10 @@ Theory
 
 This section contains short descriptions of the analyses used in probabilistic risk assessment.
 More information can be found in
-:ref:`references`, [WASH1400]_, [FTACOURSE]_, [FTHB]_, [PRA]_, [MEF]_.
+`references <references.rst>`__, `[WASH1400] <references.rst#standards-guides-manuals-handbooks>`__, 
+`[FTACOURSE] <references.rst#standards-guides-manuals-handbooks>`__, 
+`[FTHB] <references.rst#standards-guides-manuals-handbooks>`__, 
+`[PRA] <references.rst#web-resources>`__, `[MEF] <references.rst#standards-guides-manuals-handbooks>`__.
 
 
 **************************
@@ -14,7 +17,7 @@ Static Fault Tree Analysis
 **************************
 
 Fault Tree Analysis is a top-down deductive method
-to understand the logic leading to the top undesired event or fault [FTA]_.
+to understand the logic leading to the top undesired event or fault `[FTA] <references.rst#web-resources>`__.
 Boolean logic is used to combine events
 that could lead to the undesired top event.
 This analysis assumes that events are independent
@@ -157,7 +160,7 @@ Event Tree Analysis
 *******************
 
 Event Tree Analysis is a bottom-up approach
-to quantify the risk resulting from an initiating event [ETA]_.
+to quantify the risk resulting from an initiating event `[ETA] <references.rst#web-resources>`__.
 The tree is branched into conditionally independent,
 mutually exclusive cases,
 which lead to several final scenarios, outcomes, or end states.
@@ -187,7 +190,7 @@ Common Cause Failure
 If events are not statistically independent,
 common cause or mode analysis is performed
 to account for the failure of multiple elements
-at the same time or within a short period [CCF]_.
+at the same time or within a short period `[CCF] <references.rst#web-resources>`__.
 These common mode failures may be due to
 the same manufacture flaws and design,
 environment, working conditions,
@@ -195,7 +198,7 @@ maintenance, quality control,
 normal wear and tear, and many other factors.
 Several models are used to quantify the common cause failures.
 The components in the same common cause group must be described by the same probability.
-The exact formulas to compute factors are given in NRC [NUREG0492]_.
+The exact formulas to compute factors are given in NRC `[NUREG0492] <references.rst#standards-guides-manuals-handbooks>`__.
 
 
 Beta System
@@ -240,7 +243,7 @@ Uncertainty Analysis
 ********************
 
 Uncertainty quantification is performed for a top event (gate)
-with determined minimal cut sets or prime implicants [UA]_.
+with determined minimal cut sets or prime implicants `[UA] <references.rst#web-resources>`__.
 If events in the products have their probabilities
 expressed by a statistical distribution with some uncertainties,
 these uncertainties propagate to the total probability of the top event.
@@ -255,7 +258,7 @@ Sensitivity Analysis
 
 Sensitivity analysis determines
 how much the variation of each event
-contributes to the total uncertainty of the top event (gate) [SA]_.
+contributes to the total uncertainty of the top event (gate) `[SA] <references.rst#web-resources>`__.
 There are many approaches for this analysis,
 but in general, the analyst modifies the structure of the problem tree or input values
 to observe changes in results.
@@ -398,7 +401,7 @@ Reliability Block Diagram
 *************************
 
 RBD or Dependence Diagram (DD) is another way of showing the system component layout
-using a diagram with series and parallel configurations [RBD]_.
+using a diagram with series and parallel configurations `[RBD] <references.rst#web-resources>`__.
 In this analysis,
 the success of the system is shown through the paths
 that are still available after failure of a component.

@@ -30,6 +30,7 @@
 #include "expression.h"
 #include "expression/constant.h"
 #include "expression/exponential.h"
+#include "ext/variant.h"
 #include "fault_tree.h"
 #include "xml_stream.h"
 
@@ -62,12 +63,10 @@ void SerializeLabelAndAttributes(const Element& element,
     for (const Attribute& attribute : element.attributes()) {
       xml::StreamElement attribute_element =
           attributes_container.AddChild("attribute");
-      assert(attribute.name.empty() == false);
-      attribute_element.SetAttribute("name", attribute.name);
-      assert(attribute.value.empty() == false);
-      attribute_element.SetAttribute("value", attribute.value);
-      if (attribute.type.empty() == false)
-        attribute_element.SetAttribute("type", attribute.type);
+      attribute_element.SetAttribute("name", attribute.name());
+      attribute_element.SetAttribute("value", attribute.value());
+      if (attribute.type().empty() == false)
+        attribute_element.SetAttribute("type", attribute.type());
     }
   }
 }
@@ -78,27 +77,29 @@ void SerializeElement(const Element& element, xml::StreamElement* xml_element) {
 }
 
 void Serialize(const Formula& formula, xml::StreamElement* parent) {
-  assert(formula.formula_args().empty());
-  struct ArgStreamer {
-    void operator()(const Gate* gate) const {
-      xml->AddChild("gate").SetAttribute("name", gate->name());
-    }
-    void operator()(const BasicEvent* basic_event) const {
-      xml->AddChild("basic-event").SetAttribute("name", basic_event->name());
-    }
-    void operator()(const HouseEvent* house_event) const {
-      xml->AddChild("house-event").SetAttribute("name", house_event->name());
-    }
-
-    xml::StreamElement* xml;
+  auto stream_event = [](const Formula::ArgEvent& event,
+                         xml::StreamElement* xml) {
+    xml->AddChild("event").SetAttribute(
+        "name", ext::as<const mef::Event*>(event)->name());
   };
-  if (formula.type() == kNull) {
-    assert(formula.event_args().size() == 1);
-    std::visit(ArgStreamer{parent}, formula.event_args().front());
+  auto stream_arg = [&stream_event](const Formula::Arg& arg,
+                                    xml::StreamElement* xml) {
+    if (arg.complement) {
+      xml::StreamElement not_parent = xml->AddChild("not");
+      stream_event(arg.event, &not_parent);
+    } else {
+      stream_event(arg.event, xml);
+    }
+  };
+  if (formula.connective() == kNull) {
+    assert(formula.args().size() == 1);
+    assert(formula.args().front().complement == false);
+    stream_event(formula.args().front().event, parent);
   } else {
     xml::StreamElement type_element = [&formula, &parent] {
-      switch (formula.type()) {
+      switch (formula.connective()) {
         case kNot:
+          assert(formula.args().front().complement == false);
           return parent->AddChild("not");
         case kAnd:
           return parent->AddChild("and");
@@ -110,18 +111,18 @@ void Serialize(const Formula& formula, xml::StreamElement* parent) {
           return parent->AddChild("nor");
         case kXor:
           return parent->AddChild("xor");
-        case kVote:
+        case kAtleast:
           return [&formula, &parent] {
             xml::StreamElement atleast = parent->AddChild("atleast");
-            atleast.SetAttribute("min", formula.vote_number());
+            atleast.SetAttribute("min", *formula.min_number());
             return atleast;
           }();  // Wrap NRVO into RVO for GCC.
         default:
           assert(false && "Unexpected formula");
       }
     }();
-    for (const Formula::EventArg& arg : formula.event_args())
-      std::visit(ArgStreamer{&type_element}, arg);
+    for (const Formula::Arg& arg : formula.args())
+      stream_arg(arg, &type_element);
   }
 }
 
@@ -137,8 +138,8 @@ void Serialize(const FaultTree& fault_tree, xml::StreamElement* parent) {
   assert(fault_tree.role() == RoleSpecifier::kPublic);
   xml::StreamElement ft_element = parent->AddChild("define-fault-tree");
   SerializeElement(fault_tree, &ft_element);
-  for (Gate* gate : fault_tree.gates())
-    Serialize(*gate, &ft_element);
+  for (const Gate& gate : fault_tree.gates())
+    Serialize(gate, &ft_element);
 }
 
 void Serialize(const Expression& expression, xml::StreamElement* parent) {
@@ -192,14 +193,14 @@ void Serialize(const Model& model, std::FILE* out) {
   assert(model.sequences().empty());
   assert(model.rules().empty());
 
-  for (const FaultTreePtr& fault_tree : model.fault_trees())
-    Serialize(*fault_tree, &root);
+  for (const FaultTree& fault_tree : model.fault_trees())
+    Serialize(fault_tree, &root);
 
   xml::StreamElement model_data = root.AddChild("model-data");
-  for (const BasicEventPtr& basic_event : model.basic_events())
-    Serialize(*basic_event, &model_data);
-  for (const HouseEventPtr& house_event : model.house_events())
-    Serialize(*house_event, &model_data);
+  for (const BasicEvent& basic_event : model.basic_events())
+    Serialize(basic_event, &model_data);
+  for (const HouseEvent& house_event : model.house_events())
+    Serialize(house_event, &model_data);
 }
 
 }  // namespace scram::mef

@@ -14,8 +14,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """Tests for the fault tree generator."""
 
-from __future__ import division, absolute_import
-
 import random
 from subprocess import call
 from tempfile import NamedTemporaryFile
@@ -43,9 +41,9 @@ def test_min_max_prob_valid(factors):
     assert factors.max_prob == 0.5
 
 
-@pytest.mark.parametrize("min_value,max_value",
-                         [(-0.1, 0.5), (1.1, 0.5), (0.1, -0.5), (0.1, 1.5),
-                          (0.5, 0.1)])
+@pytest.mark.parametrize("min_value,max_value", [(-0.1, 0.5), (1.1, 0.5),
+                                                 (0.1, -0.5), (0.1, 1.5),
+                                                 (0.5, 0.1)])
 def test_min_max_prob_fail(factors, min_value, max_value):
     """Tests setting of invalid probability min-max factors."""
     with pytest.raises(FactorError):
@@ -61,10 +59,11 @@ def test_set_common_event_valid(factors):
     assert factors.parents_g == 4
 
 
-@pytest.mark.parametrize(
-    "args", [(-0.1, 0.5, 2, 2), (1.0, 0.5, 2, 2), (0.1, -0.5, 2, 2),
-             (0.1, 1.0, 2, 2), (0, 0, 2, 2), (0.1, 0.1, 1, 2),
-             (0.1, 0.1, 101, 2), (0.1, 0.1, 2, 1), (0.1, 0.1, 2, 101)])
+@pytest.mark.parametrize("args", [(-0.1, 0.5, 2, 2), (1.0, 0.5, 2, 2),
+                                  (0.1, -0.5, 2, 2), (0.1, 1.0, 2, 2),
+                                  (0, 0, 2, 2), (0.1, 0.1, 1, 2),
+                                  (0.1, 0.1, 101, 2), (0.1, 0.1, 2, 1),
+                                  (0.1, 0.1, 2, 101)])
 def test_set_common_event_fail(factors, args):
     """Tests setting of invalid common event factors."""
     factors.set_common_event_factors(0.1, 0.1, 2, 2)  # no fail
@@ -160,9 +159,14 @@ class FaultTreeGeneratorTestCase(TestCase):
         self.factors.calculate()
         fault_tree = generate_fault_tree("TestingTree", "root", self.factors)
         assert fault_tree is not None
-        write_info(fault_tree, self.output, 123)
-        write_summary(fault_tree, self.output)
-        self.output.write(fault_tree.to_xml(1))
+
+        def printer(*args):
+            """Temporary printer."""
+            print(*args, sep='', file=self.output)
+
+        write_info(fault_tree, printer, 123)
+        write_summary(fault_tree, printer)
+        fault_tree.to_xml(printer, True)
         self.output.flush()
         relaxng_doc = etree.parse("../share/input.rng")
         relaxng = etree.RelaxNG(relaxng_doc)
@@ -178,7 +182,8 @@ class FaultTreeGeneratorTestCase(TestCase):
         self.factors.calculate()
         fault_tree = generate_fault_tree("TestingTree", "root", self.factors)
         assert fault_tree is not None
-        self.output.write(fault_tree.to_aralia())
+        fault_tree.to_aralia(lambda *args: print(
+            *args, sep='', file=self.output))
         self.output.file.flush()
         tmp = NamedTemporaryFile(mode="w+")
         cmd = ["./translators/aralia.py", self.output.name, "-o", tmp.name]
