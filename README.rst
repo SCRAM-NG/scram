@@ -19,7 +19,7 @@ including specific features for dealing with seism.
 
 SCRAM input and report files are based on the Open-PSA_ `Model Exchange Format`_.
 For the current status of the Open-PSA MEF features in SCRAM,
-please see the `MEF Support`_ documentation.
+please see the `MEF_Support <https://github.com/SCRAM-NG/scram/blob/master/doc/opsa_support.rst>`__ documentation.
 
 The original repository rakhimov/scram included a simple GUI for visualization and manipulation of risk analysis models and reports.
 This GUI has been removed from SCRAM-NG/scram because the partners of the METIS project will use the Andromeda GUI. Andromeda (https://www.edgemind.net/andromeda/)
@@ -35,15 +35,13 @@ To explore the performance of SCRAM or research fault trees,
 a fault tree generator script is provided,
 which can create hard-to-analyze fault trees in a short time.
 
-The documentation_ contains a full description of SCRAM,
+The documentation contains a full description of SCRAM,
 its current capabilities, and future additions.
 The latest stable release is packaged for `quick installation`_ on various platforms.
 
 .. _Open-PSA: http://open-psa.org
 .. _Model Exchange Format: http://open-psa.github.io/mef
-.. _MEF Support: https://scram-pra.org/doc/opsa_support.html
-.. _documentation: https://scram-pra.org
-.. _quick installation: https://scram-pra.org/doc/installation.html
+.. _quick installation: https://github.com/SCRAM-NG/scram/blob/master/doc/installation.rst
 
 .. contents:: **Table of Contents**
 
